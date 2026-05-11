@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { Briefcase } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -14,12 +15,12 @@ type Status = 'saved' | 'applied' | 'interviewing' | 'won' | 'rejected' | 'withd
 const STATUS_OPTIONS: Status[] = ['saved', 'applied', 'interviewing', 'won', 'rejected', 'withdrawn']
 
 const STATUS_COLORS: Record<Status, string> = {
-  saved:        'bg-slate-100  text-slate-700',
-  applied:      'bg-blue-100   text-blue-700',
-  interviewing: 'bg-yellow-100 text-yellow-700',
-  won:          'bg-green-100  text-green-700',
-  rejected:     'bg-red-100    text-red-700',
-  withdrawn:    'bg-orange-100 text-orange-700',
+  saved:        'bg-accent      text-accent-foreground',
+  applied:      'bg-blue-100    text-blue-700',
+  interviewing: 'bg-yellow-100  text-yellow-700',
+  won:          'bg-green-100   text-green-700',
+  rejected:     'bg-red-100     text-red-700',
+  withdrawn:    'bg-orange-100  text-orange-700',
 }
 
 export interface TrackerApp {
@@ -104,9 +105,18 @@ export default function TrackerClient({ applications: initial }: Props) {
 
   if (apps.length === 0) {
     return (
-      <div className="py-16 text-center text-muted-foreground">
-        <p className="text-base">No applications tracked yet.</p>
-        <p className="text-sm mt-1">Save jobs from the <Link href="/feed" className="text-primary hover:underline">Feed</Link> to get started.</p>
+      <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+        <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
+          <Briefcase className="h-7 w-7 text-muted-foreground/50" />
+        </div>
+        <div>
+          <p className="font-semibold text-foreground">No applications tracked yet</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Save jobs from your{' '}
+            <Link href="/feed" className="text-primary hover:underline font-medium">Job Feed</Link>
+            {' '}to start tracking your pipeline.
+          </p>
+        </div>
       </div>
     )
   }

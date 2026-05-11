@@ -61,21 +61,20 @@ export default async function TrackerPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Application Tracker</h1>
-        <p className="text-muted-foreground mt-1">Track every opportunity from saved to won.</p>
+        <h1 className="text-2xl font-bold tracking-tight">Application Tracker</h1>
+        <p className="text-sm text-muted-foreground mt-1">Track every opportunity from saved to won.</p>
       </div>
 
-      {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'Total saved',       value: total },
+          { label: 'Total saved',        value: total },
           { label: 'Applied this month', value: appliedMonth },
           { label: 'Won',                value: won },
           { label: 'Avg days to reply',  value: avgDays !== null ? `${avgDays}d` : '—' },
         ].map(({ label, value }) => (
-          <div key={label} className="p-4 border rounded-lg bg-card text-center">
-            <p className="text-2xl font-bold">{value}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+          <div key={label} className="rounded-xl border bg-card p-4 text-center shadow-sm">
+            <p className="text-2xl font-bold text-primary tabular-nums">{value}</p>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">{label}</p>
           </div>
         ))}
       </div>

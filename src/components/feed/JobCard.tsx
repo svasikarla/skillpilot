@@ -3,15 +3,10 @@
 import { ChevronRight } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+import { TIER_COLORS } from '@/lib/tier-colors'
 import ReliabilityBadge from './ReliabilityBadge'
 import MatchBadge from './MatchBadge'
-
-const TIER_COLORS: Record<number, string> = {
-  1: 'bg-green-100  text-green-800  border border-green-200',
-  2: 'bg-blue-100   text-blue-800   border border-blue-200',
-  3: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
-  4: 'bg-orange-100 text-orange-800 border border-orange-200',
-}
 
 export interface JobCardData {
   id:                  string
@@ -37,8 +32,9 @@ export interface JobCardData {
 }
 
 interface Props {
-  job:      JobCardData
-  onClick?: () => void
+  job:       JobCardData
+  isActive?: boolean
+  onClick?:  () => void
 }
 
 function formatRate(min: string | null, max: string | null, type: string | null): string | null {
@@ -58,22 +54,30 @@ function timeAgo(iso: string | null): string {
   return `${Math.floor(d / 7)}w ago`
 }
 
-export default function JobCard({ job, onClick }: Props) {
-  const rate  = formatRate(job.rateMin, job.rateMax, job.rateType)
-  const tier  = job.platform?.trustTier ?? 0
-  const score = job.reliabilityScore ?? 50
+export default function JobCard({ job, onClick, isActive = false }: Props) {
+  const rate      = formatRate(job.rateMin, job.rateMax, job.rateType)
+  const tier      = job.platform?.trustTier ?? 0
+  const score     = job.reliabilityScore ?? 50
   const topSkills = (job.matchedSkills ?? job.extractedSkills ?? []).slice(0, 3)
 
   return (
     <Card
-      className="hover:shadow-lg hover:ring-primary/20 transition-all duration-200 cursor-pointer group border-0 ring-1 ring-border"
       onClick={onClick}
+      className={cn(
+        'cursor-pointer group transition-all duration-200 border-0 ring-1',
+        isActive
+          ? 'ring-primary shadow-md shadow-primary/15 bg-primary/[0.03]'
+          : 'ring-border hover:ring-primary/30 hover:shadow-md hover:shadow-primary/5'
+      )}
     >
       <CardContent className="p-4 space-y-3">
-        {/* Header row */}
+        {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-sm leading-snug group-hover:text-primary transition-colors line-clamp-2">
+            <h3 className={cn(
+              'font-semibold text-sm leading-snug line-clamp-2 transition-colors',
+              isActive ? 'text-primary' : 'group-hover:text-primary'
+            )}>
               {job.title}
             </h3>
             {job.company && (
@@ -85,11 +89,16 @@ export default function JobCard({ job, onClick }: Props) {
           )}
         </div>
 
-        {/* Rate + platform */}
+        {/* Rate + platform + time */}
         <div className="flex items-center gap-2 flex-wrap">
-          {rate && <span className="text-sm font-semibold tabular-nums">{rate}</span>}
+          {rate && (
+            <span className="text-sm font-semibold tabular-nums text-foreground">{rate}</span>
+          )}
           {job.platform && (
-            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${TIER_COLORS[tier] ?? 'bg-muted text-muted-foreground border border-border'}`}>
+            <span className={cn(
+              'text-[11px] px-2 py-0.5 rounded-full font-medium border',
+              TIER_COLORS[tier] ?? 'bg-muted text-muted-foreground border-border'
+            )}>
               {job.platform.name}
             </span>
           )}
@@ -98,7 +107,9 @@ export default function JobCard({ job, onClick }: Props) {
 
         {/* Excerpt */}
         {job.descriptionExcerpt && (
-          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{job.descriptionExcerpt}</p>
+          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+            {job.descriptionExcerpt}
+          </p>
         )}
 
         {/* Skill pills */}
@@ -112,13 +123,13 @@ export default function JobCard({ job, onClick }: Props) {
           </div>
         )}
 
-        {/* Reliability badge + expand hint */}
+        {/* Footer */}
         <div className="flex items-center justify-between pt-0.5">
-          <ReliabilityBadge
-            score={score}
-            signals={job.reliabilitySignals ?? {}}
-          />
-          <span className="flex items-center gap-0.5 text-xs text-muted-foreground/70 group-hover:text-primary transition-colors">
+          <ReliabilityBadge score={score} signals={job.reliabilitySignals ?? {}} />
+          <span className={cn(
+            'flex items-center gap-0.5 text-xs transition-colors',
+            isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-primary'
+          )}>
             Details
             <ChevronRight className="h-3 w-3" />
           </span>
