@@ -4,18 +4,15 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
-  server: {
-    deps: {
-      // Lucide React v1+ ships ESM-only; inline it so Vite can transform it
-      inline: ['lucide-react'],
-    },
-  },
   test: {
     globals: true,
     environment: 'node',
-    environmentMatchGlobs: [
-      ['src/__tests__/components/**', 'jsdom'],
-    ],
+    server: {
+      deps: {
+        // Lucide React v1+ ships ESM-only; inline it so Vite can transform it
+        inline: ['lucide-react'],
+      },
+    },
     setupFiles: ['./src/__tests__/setup.ts'],
     include: ['src/__tests__/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
