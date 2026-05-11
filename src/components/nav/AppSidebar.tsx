@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   Briefcase, LayoutDashboard, MapPin, BookOpen,
-  BarChart2, Users, Settings, LogOut, Sparkles,
+  BarChart2, Users, Settings, LogOut, Sparkles, ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -81,6 +81,18 @@ export default function AppSidebar() {
         >
           <Settings className="h-4 w-4 shrink-0" />
           Settings
+        </Link>
+        <Link
+          href="/admin"
+          className={cn(
+            'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
+            pathname.startsWith('/admin')
+              ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
+              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+          )}
+        >
+          <ShieldCheck className="h-4 w-4 shrink-0" />
+          Admin
         </Link>
         <button
           onClick={signOut}
