@@ -6,7 +6,7 @@ import {
   Sparkles, ArrowRight, ChevronRight,
   Shield, Globe, Star,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -92,9 +92,9 @@ export default function LandingPage() {
           <nav className="flex items-center gap-6">
             <a href="#features"     className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block">Features</a>
             <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block">How it works</a>
-            <Button asChild size="sm" className="gap-1.5 shadow-sm shadow-primary/30">
-              <Link href="/login">Sign in <ArrowRight className="h-3.5 w-3.5" /></Link>
-            </Button>
+            <Link href="/login" className={buttonVariants({ size: 'sm', className: 'gap-1.5 shadow-sm shadow-primary/30' })}>
+              Sign in <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </nav>
         </div>
       </header>
@@ -128,12 +128,12 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-20">
-            <Button asChild size="lg" className="gap-2 px-9 shadow-xl shadow-primary/25 font-semibold">
-              <Link href="/login">Request Access <ArrowRight className="h-4 w-4" /></Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="gap-2 px-9">
-              <a href="#how-it-works">See How It Works</a>
-            </Button>
+            <Link href="/login" className={buttonVariants({ size: 'lg', className: 'gap-2 px-9 shadow-xl shadow-primary/25 font-semibold' })}>
+              Request Access <ArrowRight className="h-4 w-4" />
+            </Link>
+            <a href="#how-it-works" className={buttonVariants({ variant: 'outline', size: 'lg', className: 'gap-2 px-9' })}>
+              See How It Works
+            </a>
           </div>
 
           {/* ── Browser-frame mock feed ── */}
@@ -270,14 +270,9 @@ export default function LandingPage() {
             <p className="text-primary-foreground/75 text-lg mb-9 max-w-md mx-auto leading-relaxed">
               Join the invite-only network and let SkillPilot run your job search on autopilot.
             </p>
-            <Button
-              asChild
-              size="lg"
-              variant="secondary"
-              className="gap-2 px-10 font-semibold shadow-2xl"
-            >
-              <Link href="/login">Request Access <ArrowRight className="h-4 w-4" /></Link>
-            </Button>
+            <Link href="/login" className={buttonVariants({ variant: 'secondary', size: 'lg', className: 'gap-2 px-10 font-semibold shadow-2xl' })}>
+              Request Access <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </section>
