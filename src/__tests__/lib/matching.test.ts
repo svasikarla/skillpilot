@@ -443,3 +443,75 @@ describe('matchLabel()', () => {
     expect(matchLabel(49, false)).toBe('Low Match')
   })
 })
+
+// ─── computeMatch — composite end-to-end ─────────────────────────────────────
+
+describe('computeMatch() — composite end-to-end', () => {
+  it('perfect member produces matchScore >= 90', () => {
+    const member = makeMember({
+      targetHourlyRate: 100,
+      hoursPerWeek:     40,
+      yearsExperience:  5,
+      skills: [
+        { name: 'Python',    selfRating: 5 },
+        { name: 'LangChain', selfRating: 4 },
+        { name: 'RAG',       selfRating: 4 },
+      ],
+    })
+    const job = makeJob({
+      extractedSkills: ['Python', 'LangChain', 'RAG'],
+      rateMin:         90,
+      rateMax:         110,
+      description:     'Contract role. 3+ years experience required. Full-time.',
+    })
+    const { matchScore, isNearMiss } = computeMatch(member, job)
+    expect(matchScore).toBeGreaterThanOrEqual(85)
+    expect(isNearMiss).toBe(false)
+  })
+
+  it('zero-skill member triggers near-miss and caps matchScore at hardGateCap', () => {
+    const member = makeMember({
+      skills: [{ name: 'JavaScript', selfRating: 4 }],
+    })
+    const job = makeJob({
+      extractedSkills: ['Python', 'LangChain', 'RAG', 'TensorFlow', 'CUDA'],
+    })
+    const { matchScore, isNearMiss } = computeMatch(member, job)
+    expect(isNearMiss).toBe(true)
+    expect(matchScore).toBeLessThanOrEqual(Math.round(MATCH_THRESHOLDS.hardGateCap * 100))
+  })
+
+  it('computeMatch is deterministic — same inputs produce identical output', () => {
+    const member = makeMember()
+    const job    = makeJob()
+    const r1 = computeMatch(member, job)
+    const r2 = computeMatch(member, job)
+    expect(r1.matchScore).toBe(r2.matchScore)
+    expect(r1.skillScore).toBe(r2.skillScore)
+    expect(r1.isNearMiss).toBe(r2.isNearMiss)
+    expect(r1.matchedSkills).toEqual(r2.matchedSkills)
+    expect(r1.missingSkills).toEqual(r2.missingSkills)
+  })
+
+  it('matchScore is always an integer', () => {
+    const cases: [Partial<MemberProfile>, Partial<JobForMatch>][] = [
+      [{ skills: [] }, {}],
+      [{ targetHourlyRate: 200 }, { rateMin: 50, rateMax: 60 }],
+      [{ yearsExperience: 1 },  { description: '10 years experience required' }],
+    ]
+    for (const [memberOverrides, jobOverrides] of cases) {
+      const { matchScore } = computeMatch(makeMember(memberOverrides), makeJob(jobOverrides))
+      expect(Number.isInteger(matchScore)).toBe(true)
+    }
+  })
+
+  it('member with no skills against job with no skills produces neutral non-near-miss score', () => {
+    const { matchScore, isNearMiss } = computeMatch(
+      makeMember({ skills: [] }),
+      makeJob({ extractedSkills: [] })
+    )
+    expect(isNearMiss).toBe(false)
+    expect(matchScore).toBeGreaterThan(0)
+    expect(matchScore).toBeLessThanOrEqual(100)
+  })
+})

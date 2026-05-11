@@ -36,7 +36,7 @@ describe('AppSidebar', () => {
 
   it('renders the brand name', () => {
     render(<AppSidebar />)
-    expect(screen.getByText(/AI\/ML Hub/i)).toBeInTheDocument()
+    expect(screen.getByText(/SkillPilot/i)).toBeInTheDocument()
   })
 
   it('renders all primary navigation links', () => {
@@ -49,9 +49,10 @@ describe('AppSidebar', () => {
     expect(screen.getByText('Community')).toBeInTheDocument()
   })
 
-  it('renders Settings link', () => {
+  it('renders Settings and Admin links', () => {
     render(<AppSidebar />)
     expect(screen.getByText('Settings')).toBeInTheDocument()
+    expect(screen.getByText('Admin')).toBeInTheDocument()
   })
 
   it('renders Sign out button', () => {
@@ -64,8 +65,8 @@ describe('AppSidebar', () => {
     vi.mocked(usePathname).mockReturnValue('/feed')
     render(<AppSidebar />)
     const feedLink = screen.getByText('Job Feed').closest('a')
-    // Active link has bg-sidebar-primary class
-    expect(feedLink?.className).toContain('bg-sidebar-primary')
+    // Active link has bg-primary class
+    expect(feedLink?.className).toContain('bg-primary')
   })
 
   it('calls signOut and redirects on sign-out click', async () => {
@@ -91,5 +92,14 @@ describe('AppSidebar', () => {
     expect(screen.getByText('Platforms').closest('a')).toHaveAttribute('href', '/platforms')
     expect(screen.getByText('Roadmap').closest('a')).toHaveAttribute('href', '/roadmap')
     expect(screen.getByText('Community').closest('a')).toHaveAttribute('href', '/community')
+    expect(screen.getByText('Admin').closest('a')).toHaveAttribute('href', '/admin')
+  })
+
+  it('marks Admin link as active when current path starts with /admin', async () => {
+    const { usePathname } = await import('next/navigation')
+    vi.mocked(usePathname).mockReturnValue('/admin/jobs')
+    render(<AppSidebar />)
+    const adminLink = screen.getByText('Admin').closest('a')
+    expect(adminLink?.className).toContain('bg-primary')
   })
 })

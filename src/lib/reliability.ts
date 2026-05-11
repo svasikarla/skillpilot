@@ -105,8 +105,8 @@ export function scoreJob(
 }
 
 export function shouldAutoApprove(result: ScoringResult, isUSAJobs = false): boolean {
-  if (isUSAJobs) return result.score >= 60
-  return result.score >= 70
+  if (isUSAJobs) return result.score >= 80
+  return false
 }
 
 export function shouldAutoReject(result: ScoringResult): boolean {
