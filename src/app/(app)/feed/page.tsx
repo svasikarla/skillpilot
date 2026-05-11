@@ -70,14 +70,22 @@ export default async function FeedPage() {
   )
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Job Feed</h1>
-        <p className="text-muted-foreground mt-1">
-          {jobs.length > 0
-            ? `${jobs.length} AI/ML jobs ranked by your match score`
-            : 'No matched jobs yet — check back after the next ingestion run.'}
-        </p>
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Job Feed</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {jobs.length > 0
+              ? `${jobs.length} AI/ML contracts ranked by your profile match`
+              : 'No matched jobs yet — check back after the next ingestion run.'}
+          </p>
+        </div>
+        {jobs.length > 0 && (
+          <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold px-3 py-1.5 shrink-0">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+            {jobs.length} matches
+          </span>
+        )}
       </div>
 
       <FeedClient initialJobs={jobs} platforms={platforms} userId={user.id} />
