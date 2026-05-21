@@ -1,94 +1,34 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import FeedClient from './FeedClient'
+import { redirect } from 'next/navigation'
+import FeedContent from './FeedContent'
+import AppNav from '@/components/AppNav'
 
 export default async function FeedPage() {
   const supabase = await createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  if (!user) redirect('/login')
 
-  // Fetch matched jobs for this member, ordered by match score
-  const { data: matchRows } = await supabase
-    .from('member_job_matches')
-    .select(`
-      match_score, is_near_miss, matched_skills, missing_skills,
-      jobs (
-        id, title, company, description_excerpt, source_url,
-        posted_at, rate_min, rate_max, rate_type,
-        reliability_score, reliability_signals, extracted_skills,
-        platforms ( id, name, trust_tier )
-      )
-    `)
-    .eq('member_id', user.id)
-    .order('match_score', { ascending: false })
-    .limit(50)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('name, skills, onboarded')
+    .eq('user_id', user.id)
+    .single()
 
-  type RawJob = {
-    id: string; title: string; company: string | null
-    description_excerpt: string | null; source_url: string
-    posted_at: string | null; rate_min: string | null; rate_max: string | null
-    rate_type: string | null; reliability_score: number | null
-    reliability_signals: unknown; extracted_skills: string[] | null
-    platforms: { id: number; name: string; trust_tier: number | null } | null | Array<{ id: number; name: string; trust_tier: number | null }>
-  }
-
-  // Normalise rows into a flat shape the client expects
-  const jobs = (matchRows ?? [])
-    .filter(r => r.jobs)
-    .map(r => {
-      const j = r.jobs as unknown as RawJob
-      const plat = j.platforms
-        ? (Array.isArray(j.platforms) ? j.platforms[0] : j.platforms)
-        : null
-      return {
-        id:                  j.id,
-        title:               j.title,
-        company:             j.company,
-        descriptionExcerpt:  j.description_excerpt,
-        sourceUrl:           j.source_url,
-        postedAt:            j.posted_at,
-        rateMin:             j.rate_min,
-        rateMax:             j.rate_max,
-        rateType:            j.rate_type,
-        reliabilityScore:    j.reliability_score,
-        reliabilitySignals:  j.reliability_signals as Record<string, number> | null,
-        extractedSkills:     j.extracted_skills,
-        matchScore:          r.match_score !== null ? Number(r.match_score) : null,
-        isNearMiss:          r.is_near_miss ?? false,
-        matchedSkills:       r.matched_skills as string[] | null,
-        platform:            plat
-          ? { id: plat.id, name: plat.name, trustTier: plat.trust_tier }
-          : null,
-      }
-    })
-
-  // Get distinct platforms for filter bar
-  const platforms = Array.from(
-    new Map(
-      jobs.filter(j => j.platform).map(j => [j.platform!.id, j.platform!])
-    ).values()
-  )
+  if (!profile) redirect('/onboarding')
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Job Feed</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {jobs.length > 0
-              ? `${jobs.length} AI/ML contracts ranked by your profile match`
-              : 'No matched jobs yet — check back after the next ingestion run.'}
-          </p>
-        </div>
-        {jobs.length > 0 && (
-          <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold px-3 py-1.5 shrink-0">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-            {jobs.length} matches
-          </span>
-        )}
-      </div>
-
-      <FeedClient initialJobs={jobs} platforms={platforms} userId={user.id} />
+    <div className="min-h-screen bg-background">
+      <AppNav userName={profile.name} />
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        <Suspense fallback={
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => <div key={i} className="h-32 rounded-lg bg-muted animate-pulse" />)}
+          </div>
+        }>
+          <FeedContent userSkills={profile.skills ?? []} />
+        </Suspense>
+      </main>
     </div>
   )
 }

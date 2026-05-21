@@ -1,148 +1,98 @@
 import { createClient } from '@/lib/supabase/server'
-import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TIER_COLORS, TIER_LABELS, TIER_DESCRIPTIONS } from '@/lib/tier-colors'
-import PlatformAccountToggle from '@/components/platforms/PlatformAccountToggle'
+import { redirect } from 'next/navigation'
+import AppNav from '@/components/AppNav'
+import { Shield, Star, ExternalLink } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-type PlatformRow = {
-  id: number; name: string; slug: string; url: string
-  platform_type: string | null; trust_tier: number | null; trust_score: number | null
-  rate_min_aiml: string | null; rate_max_aiml: string | null
-  payment_model: string | null; has_escrow: boolean | null
-  has_id_verification: boolean | null; typical_time_to_pay: string | null
-  is_active: boolean | null
+const TIER_CONFIG: Record<number, { label: string; color: string; bg: string }> = {
+  1: { label: 'Elite',    color: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800' },
+  2: { label: 'Strong',   color: 'text-blue-700 dark:text-blue-400',       bg: 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800' },
+  3: { label: 'Emerging', color: 'text-amber-700 dark:text-amber-400',     bg: 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800' },
+  4: { label: 'Risky',    color: 'text-red-700 dark:text-red-400',         bg: 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800' },
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  marketplace: 'Marketplace', talent_network: 'Talent Network',
-  rlhf_eval: 'RLHF / Eval', competition: 'Competition', bounty: 'Bug Bounty',
+function TrustBar({ score }: { score: number }) {
+  const color = score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-amber-400' : 'bg-red-400'
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+        <div className={cn('h-full rounded-full', color)} style={{ width: `${score}%` }} />
+      </div>
+      <span className="text-xs text-muted-foreground w-8 text-right">{score}</span>
+    </div>
+  )
 }
 
 export default async function PlatformsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
-  const [{ data: platforms }, { data: myAccounts }] = await Promise.all([
-    supabase.from('platforms').select('*').eq('is_active', true).order('trust_tier'),
-    user
-      ? supabase.from('member_platform_accounts')
-          .select('platform_id, has_account, interest_level')
-          .eq('member_id', user.id)
-      : { data: [] },
+  const [{ data: profile }, { data: platforms }, { data: reviewCounts }] = await Promise.all([
+    supabase.from('profiles').select('name').eq('user_id', user.id).single(),
+    supabase.from('platforms').select('id, slug, name, tier, trust_score, description, website').order('tier').order('trust_score', { ascending: false }),
+    supabase.from('platform_reviews').select('platform_id'),
   ])
 
-  const myAccountMap = new Map((myAccounts ?? []).map(a => [a.platform_id, a]))
-
-  const byTier = (platforms ?? []).reduce((acc, p) => {
-    const tier = p.trust_tier ?? 4
-    if (!acc[tier]) acc[tier] = []
-    acc[tier].push(p)
+  const countByPlatform = (reviewCounts ?? []).reduce<Record<string, number>>((acc, r) => {
+    acc[r.platform_id] = (acc[r.platform_id] ?? 0) + 1
     return acc
-  }, {} as Record<number, PlatformRow[]>)
+  }, {})
 
   return (
-    <div className="space-y-10">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Platform Intelligence</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Every AI/ML freelance platform assessed for trustworthiness, rate ranges, and application norms.
-        </p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <AppNav userName={profile?.name} />
 
-      {[1, 2, 3, 4].map(tier => {
-        const tieredPlatforms = byTier[tier] ?? []
-        if (!tieredPlatforms.length) return null
+      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+        <div>
+          <h1 className="page-header">Freelance Platforms</h1>
+          <p className="page-subheader">Ranked by tier and trust score. Click any platform for AI/ML-specific guides and member reviews.</p>
+        </div>
 
-        return (
-          <section key={tier} className="space-y-4">
-            {/* Tier header */}
-            <div className="flex items-center gap-3">
-              <span className={`text-xs px-3 py-1 rounded-full font-semibold border ${TIER_COLORS[tier]}`}>
-                {TIER_LABELS[tier]}
-              </span>
-              <span className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground shrink-0">
-                {TIER_DESCRIPTIONS[tier]}
-              </span>
-            </div>
+        {[1, 2, 3, 4].map(tier => {
+          const tierPlatforms = (platforms ?? []).filter(p => p.tier === tier)
+          if (!tierPlatforms.length) return null
+          const cfg = TIER_CONFIG[tier]
+          return (
+            <section key={tier} className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className={cn('text-xs font-semibold px-2.5 py-0.5 rounded-full border', cfg.bg, cfg.color)}>
+                  Tier {tier} · {cfg.label}
+                </span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(tieredPlatforms as PlatformRow[]).map((platform: PlatformRow) => {
-                const account = myAccountMap.get(platform.id)
-                return (
-                  <Card
-                    key={platform.id}
-                    className="group hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <CardTitle className="text-base font-semibold">
-                            <Link
-                              href={`/platforms/${platform.slug}`}
-                              className="hover:text-primary transition-colors"
-                            >
-                              {platform.name}
-                            </Link>
-                          </CardTitle>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {TYPE_LABELS[platform.platform_type ?? ''] ?? platform.platform_type}
-                          </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {tierPlatforms.map(p => (
+                  <a key={p.id} href={`/platforms/${p.slug}`}
+                    className="card-interactive rounded-lg p-4 block group">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm group-hover:text-primary transition-colors">{p.name}</span>
+                          {(countByPlatform[p.id] ?? 0) > 0 && (
+                            <span className="flex items-center gap-0.5 text-xs text-amber-600">
+                              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                              {countByPlatform[p.id]}
+                            </span>
+                          )}
                         </div>
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border shrink-0 ${TIER_COLORS[tier]}`}>
-                          T{tier}
-                        </span>
+                        <div className="mt-1">
+                          <TrustBar score={p.trust_score} />
+                        </div>
                       </div>
-                    </CardHeader>
-
-                    <CardContent className="space-y-3 pt-0">
-                      {platform.rate_min_aiml && platform.rate_max_aiml ? (
-                        <p className="text-sm font-semibold tabular-nums">
-                          ${platform.rate_min_aiml}–${platform.rate_max_aiml}
-                          <span className="text-muted-foreground font-normal text-xs">/hr AI/ML</span>
-                        </p>
-                      ) : platform.payment_model === 'prize' ? (
-                        <p className="text-sm text-muted-foreground">Prize-based</p>
-                      ) : null}
-
-                      <div className="flex flex-wrap gap-1.5">
-                        {platform.has_escrow && (
-                          <Badge variant="secondary" className="text-xs">Escrow</Badge>
-                        )}
-                        {platform.has_id_verification && (
-                          <Badge variant="secondary" className="text-xs">ID Verified</Badge>
-                        )}
-                        {platform.payment_model && (
-                          <Badge variant="outline" className="text-xs capitalize">
-                            {platform.payment_model}
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between pt-1 border-t border-border/50">
-                        {user && (
-                          <PlatformAccountToggle
-                            platformId={platform.id}
-                            memberId={user.id}
-                            hasAccount={account?.has_account ?? false}
-                          />
-                        )}
-                        <Link
-                          href={`/platforms/${platform.slug}`}
-                          className="text-xs font-medium text-primary hover:underline ml-auto flex items-center gap-1"
-                        >
-                          Full guide →
-                        </Link>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </section>
-        )
-      })}
+                      <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-primary/60 transition-colors shrink-0 mt-0.5" />
+                    </div>
+                    {p.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{p.description}</p>
+                    )}
+                  </a>
+                ))}
+              </div>
+            </section>
+          )
+        })}
+      </main>
     </div>
   )
 }

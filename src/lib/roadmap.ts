@@ -1,120 +1,53 @@
-import { createClient } from '@/lib/supabase/server'
+import { getResourceForSkill, type LearningResource } from './learning-resources'
 
-export interface RoadmapSkill {
-  skillName:    string
+export interface SkillGap {
+  skill: string
   jobsUnlocked: number
-  avgRate:      number
-  roi:          number
-  status:       'active' | 'learning' | 'planned'
-  resource: {
-    title:     string
-    url:       string
-    provider:  string
-    format:    string
-    estHours:  number
-    isFree:    boolean
-  } | null
+  avgRate: number          // average of (rate_min + rate_max) / 2 across qualifying jobs
+  roi: number              // jobsUnlocked × avgRate — simple impact score
+  resource: LearningResource | null
 }
 
-export async function getRoadmap(userId: string): Promise<RoadmapSkill[]> {
-  const supabase = await createClient()
+interface Job {
+  skills: string[]
+  rate_min: number | null
+  rate_max: number | null
+}
 
-  // 1. Member's existing skills and their statuses
-  const { data: allMs } = await supabase
-    .from('member_skills')
-    .select('skills ( name ), self_rating, status')
-    .eq('member_id', userId)
+export function computeRoadmap(userSkills: string[], jobs: Job[]): SkillGap[] {
+  const userSkillsLower = new Set(userSkills.map(s => s.toLowerCase()))
 
-  const hasSkills    = new Set<string>()
-  const statusByName = new Map<string, 'active' | 'learning' | 'planned'>()
+  // For each skill missing from user, count jobs and avg rate
+  const gapMap = new Map<string, { count: number; rateSum: number; rateCount: number }>()
 
-  for (const row of (allMs ?? [])) {
-    const sk = row.skills as { name: string } | { name: string }[] | null
-    const names = sk ? (Array.isArray(sk) ? sk.map(s => s.name) : [sk.name]) : []
-    const st = (row as { status?: string }).status as 'active' | 'learning' | 'planned' | undefined
-    for (const n of names) {
-      if (st) statusByName.set(n, st)
-      if ((row.self_rating ?? 0) >= 3 && st === 'active') hasSkills.add(n)
+  for (const job of jobs) {
+    const jobRate = job.rate_min && job.rate_max
+      ? (job.rate_min + job.rate_max) / 2
+      : job.rate_min ?? job.rate_max ?? 0
+
+    for (const skill of job.skills ?? []) {
+      if (!userSkillsLower.has(skill.toLowerCase())) {
+        const entry = gapMap.get(skill) ?? { count: 0, rateSum: 0, rateCount: 0 }
+        entry.count += 1
+        if (jobRate > 0) { entry.rateSum += jobRate; entry.rateCount += 1 }
+        gapMap.set(skill, entry)
+      }
     }
   }
 
-  // 2. All approved jobs with extracted skills + rates
-  const { data: jobs } = await supabase
-    .from('jobs')
-    .select('extracted_skills, rate_min, rate_max')
-    .eq('status', 'approved')
-    .not('extracted_skills', 'is', null)
-
-  // 3. Tally gap skills across jobs
-  const stats = new Map<string, { count: number; totalRate: number; rateCount: number }>()
-
-  for (const job of (jobs ?? [])) {
-    const skills = (job.extracted_skills ?? []) as string[]
-    for (const skill of skills) {
-      if (hasSkills.has(skill)) continue
-      if (!stats.has(skill)) stats.set(skill, { count: 0, totalRate: 0, rateCount: 0 })
-      const s = stats.get(skill)!
-      s.count++
-      const lo = Number(job.rate_min ?? 0)
-      const hi = Number(job.rate_max ?? 0)
-      const rate = lo > 0 && hi > 0 ? (lo + hi) / 2 : lo || hi
-      if (rate > 0) { s.totalRate += rate; s.rateCount++ }
-    }
-  }
-
-  if (stats.size === 0) return []
-
-  // 4. Learning resources — join through skills table
-  const gapNames = Array.from(stats.keys())
-  const { data: skillRows } = await supabase
-    .from('skills')
-    .select('id, name')
-    .in('name', gapNames.slice(0, 100))
-
-  const nameToId = new Map((skillRows ?? []).map(r => [r.name, r.id]))
-  const gapIds   = Array.from(nameToId.values())
-
-  const { data: resources } = gapIds.length > 0
-    ? await supabase
-        .from('learning_resources')
-        .select('skill_id, title, url, provider, format, est_hours, cost')
-        .in('skill_id', gapIds)
-    : { data: [] }
-
-  type ResourceRow = { skill_id: number; title: string; url: string; provider: string | null; format: string | null; est_hours: number | null; cost: string | null }
-  const idToName    = new Map((skillRows ?? []).map(r => [r.id, r.name]))
-  const resourceMap = new Map<string, ResourceRow>()
-  for (const r of ((resources ?? []) as ResourceRow[])) {
-    const name = idToName.get(r.skill_id)
-    if (name && !resourceMap.has(name)) resourceMap.set(name, r)
-  }
-
-  // 5. Assemble roadmap items
-  const items: RoadmapSkill[] = []
-  for (const [skillName, stat] of stats) {
-    if (stat.count === 0) continue
-    const avgRate  = stat.rateCount > 0 ? stat.totalRate / stat.rateCount : 80
-    const res      = resourceMap.get(skillName)
-    const estHours = res ? Number(res.est_hours) : 10
-    const roi      = (stat.count * avgRate * 0.15) / estHours
-
-    items.push({
-      skillName,
-      jobsUnlocked: stat.count,
-      avgRate:      Math.round(avgRate),
-      roi:          Math.round(roi * 10) / 10,
-      status:       statusByName.get(skillName) ?? 'planned',
-      resource:     res ? {
-        title:    res.title,
-        url:      res.url,
-        provider: res.provider ?? '',
-        format:   res.format ?? 'docs',
-        estHours: Number(res.est_hours),
-        isFree:   res.cost === 'free',
-      } : null,
+  const gaps: SkillGap[] = []
+  for (const [skill, { count, rateSum, rateCount }] of gapMap) {
+    if (count < 2) continue // skip skills appearing in only 1 job
+    const avgRate = rateCount > 0 ? Math.round(rateSum / rateCount) : 0
+    gaps.push({
+      skill,
+      jobsUnlocked: count,
+      avgRate,
+      roi: count * avgRate,
+      resource: getResourceForSkill(skill),
     })
   }
 
-  items.sort((a, b) => b.roi - a.roi || b.jobsUnlocked - a.jobsUnlocked)
-  return items.slice(0, 20)
+  // Sort by ROI descending
+  return gaps.sort((a, b) => b.roi - a.roi).slice(0, 20)
 }

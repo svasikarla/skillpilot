@@ -3,252 +3,122 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import ReliabilityBadge from '@/components/feed/ReliabilityBadge'
-import { SIGNAL_LABELS } from '@/lib/reliability'
+import { CheckCircle, XCircle, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
-import { createClient } from '@/lib/supabase/client'
+import { tierFromScore, tierLabel } from '@/lib/reliability'
 
-interface AdminJob {
-  id:                 string
-  title:              string
-  company:            string | null
-  descriptionExcerpt: string | null
-  sourceUrl:          string
-  postedAt:           string | null
-  ingestedAt:         string | null
-  reliabilityScore:   number | null
-  reliabilitySignals: Record<string, number> | null
-  extractedSkills:    string[] | null
-  status:             string | null
-  platform:           { name: string; trustTier: number | null } | null
+type Job = {
+  id: string
+  title: string
+  company: string | null
+  platform: string
+  status: string
+  reliability_score: number
+  reliability_flags: string[]
+  posted_at: string
+  url: string | null
+  source: string | null
 }
 
-interface Props {
-  jobs: AdminJob[]
+function ReliabilityBadge({ score }: { score: number }) {
+  const tier = tierFromScore(score)
+  const colors = { green: 'bg-emerald-100 text-emerald-800', amber: 'bg-yellow-100 text-yellow-800', red: 'bg-red-100 text-red-800' }
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${colors[tier]}`}>
+      {score} · {tierLabel(tier)}
+    </span>
+  )
 }
 
-const TIER_COLORS: Record<number, string> = {
-  1: 'bg-green-100  text-green-800',
-  2: 'bg-blue-100   text-blue-800',
-  3: 'bg-yellow-100 text-yellow-800',
-  4: 'bg-orange-100 text-orange-800',
-}
+export function AdminJobsClient({ jobs }: { jobs: Job[] }) {
+  const [statuses, setStatuses] = useState<Record<string, string>>(
+    Object.fromEntries(jobs.map(j => [j.id, j.status]))
+  )
+  const [loading, setLoading] = useState<Record<string, boolean>>({})
 
-export default function AdminJobsClient({ jobs: initial }: Props) {
-  const [jobs, setJobs]       = useState(initial)
-  const [detail, setDetail]   = useState<AdminJob | null>(null)
-  const [loading, setLoading] = useState<Set<string>>(new Set())
-
-  async function setStatus(id: string, status: 'approved' | 'rejected') {
-    setLoading(prev => new Set(prev).add(id))
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('jobs')
-      .update({ status })
-      .eq('id', id)
-
-    if (error) {
-      toast.error(`Failed to ${status === 'approved' ? 'approve' : 'reject'} job`)
+  async function updateStatus(id: string, status: 'approved' | 'rejected') {
+    setLoading(p => ({ ...p, [id]: true }))
+    const res = await fetch(`/api/admin/jobs/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    if (res.ok) {
+      setStatuses(p => ({ ...p, [id]: status }))
+      toast.success(`Job ${status}`)
     } else {
-      setJobs(prev => prev.filter(j => j.id !== id))
-      if (detail?.id === id) setDetail(null)
-      toast.success(status === 'approved' ? 'Job approved' : 'Job rejected')
+      toast.error('Failed to update')
     }
-    setLoading(prev => { const s = new Set(prev); s.delete(id); return s })
+    setLoading(p => ({ ...p, [id]: false }))
   }
 
   async function bulkApprove() {
-    const eligible = jobs.filter(j => (j.reliabilityScore ?? 0) >= 70)
-    if (!eligible.length) { toast.info('No jobs with score ≥ 70'); return }
+    const pending = jobs.filter(j => statuses[j.id] === 'pending' && j.reliability_score >= 60)
+    if (pending.length === 0) { toast.info('No pending jobs with score ≥ 60'); return }
+    await Promise.all(pending.map(j => updateStatus(j.id, 'approved')))
+    toast.success(`Bulk approved ${pending.length} jobs`)
+  }
 
-    const supabase = createClient()
-    const ids = eligible.map(j => j.id)
-    const { error } = await supabase
-      .from('jobs')
-      .update({ status: 'approved' })
-      .in('id', ids)
-
-    if (error) {
-      toast.error('Bulk approve failed')
-    } else {
-      setJobs(prev => prev.filter(j => !ids.includes(j.id)))
-      toast.success(`Approved ${ids.length} jobs`)
-    }
+  if (jobs.length === 0) {
+    return <p className="text-muted-foreground text-sm py-8 text-center">No jobs in this view.</p>
   }
 
   return (
-    <>
-      {/* Toolbar */}
-      <div className="flex items-center gap-3 pb-4">
-        <Button onClick={bulkApprove} variant="default" size="sm">
-          Bulk approve ≥ 70
-        </Button>
-        <span className="text-sm text-muted-foreground">{jobs.length} shown</span>
-      </div>
-
-      {jobs.length === 0 ? (
-        <div className="py-16 text-center text-muted-foreground">
-          <p>Queue is empty — all jobs processed.</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {jobs.map(job => {
-            const rel   = job.reliabilityScore ?? 50
-            const tier  = job.platform?.trustTier ?? 0
-            const busy  = loading.has(job.id)
-
-            return (
-              <div
-                key={job.id}
-                className="flex items-start gap-3 p-4 border rounded-lg bg-card hover:bg-muted/30 transition-colors"
-              >
-                {/* Score column */}
-                <div className="w-20 shrink-0 flex flex-col items-center pt-1">
-                  <span className={`text-2xl font-bold ${rel >= 70 ? 'text-green-600' : rel >= 40 ? 'text-yellow-600' : 'text-red-500'}`}>
-                    {rel}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">reliability</span>
-                </div>
-
-                {/* Main content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start gap-2 flex-wrap">
-                    <button
-                      className="text-sm font-medium hover:underline text-left"
-                      onClick={() => setDetail(job)}
-                    >
-                      {job.title}
-                    </button>
-                    {job.platform && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${TIER_COLORS[tier] ?? 'bg-muted text-muted-foreground'}`}>
-                        {job.platform.name}
-                      </span>
-                    )}
-                  </div>
-                  {job.company && (
-                    <p className="text-xs text-muted-foreground">{job.company}</p>
-                  )}
-                  {job.descriptionExcerpt && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{job.descriptionExcerpt}</p>
-                  )}
-                  {job.extractedSkills?.length ? (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {job.extractedSkills.slice(0, 5).map(s => (
-                        <Badge key={s} variant="secondary" className="text-[10px] py-0 px-1.5">{s}</Badge>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2 shrink-0 mt-0.5">
-                  <Button
-                    size="sm" variant="outline"
-                    className="text-xs h-7"
-                    onClick={() => setStatus(job.id, 'approved')}
-                    disabled={busy}
-                  >
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm" variant="ghost"
-                    className="text-xs h-7 text-destructive hover:text-destructive"
-                    onClick={() => setStatus(job.id, 'rejected')}
-                    disabled={busy}
-                  >
-                    Reject
-                  </Button>
-                </div>
-              </div>
-            )
-          })}
+    <div className="space-y-3">
+      {jobs.some(j => statuses[j.id] === 'pending') && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={bulkApprove}>
+            Bulk approve all pending (score ≥ 60)
+          </Button>
         </div>
       )}
 
-      {/* Detail drawer */}
-      <Sheet open={!!detail} onOpenChange={open => { if (!open) setDetail(null) }}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          {detail && (
-            <>
-              <SheetHeader className="pb-3">
-                <SheetTitle className="text-base pr-8">{detail.title}</SheetTitle>
-                {detail.company && <p className="text-sm text-muted-foreground">{detail.company}</p>}
-              </SheetHeader>
+      {jobs.map(job => (
+        <div key={job.id} className="border rounded-lg p-4 flex items-center gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <span className="font-medium text-sm">{job.title}</span>
+              <Badge variant="outline" className="text-xs">{job.platform}</Badge>
+              {job.source && <Badge variant="outline" className="text-xs text-muted-foreground">{job.source}</Badge>}
+            </div>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              {job.company && <span>{job.company}</span>}
+              <span>{new Date(job.posted_at).toLocaleDateString()}</span>
+              <ReliabilityBadge score={job.reliability_score ?? 50} />
+              {(job.reliability_flags ?? []).slice(0, 2).map(f => (
+                <span key={f} className="text-muted-foreground">{f}</span>
+              ))}
+            </div>
+          </div>
 
-              <div className="py-3 border-y flex items-center gap-3">
-                <ReliabilityBadge
-                  score={detail.reliabilityScore ?? 50}
-                  signals={detail.reliabilitySignals ?? {}}
-                  size="md"
-                />
-                <a
-                  href={detail.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary hover:underline"
-                >
-                  View source ↗
-                </a>
-              </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {job.url && (
+              <a href={job.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-muted rounded">
+                <ExternalLink className="h-4 w-4 text-muted-foreground" />
+              </a>
+            )}
 
-              <div className="mt-4 space-y-4">
-                {/* Signal breakdown */}
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium">Reliability signals</p>
-                  {Object.entries(detail.reliabilitySignals ?? {}).map(([k, v]) => (
-                    <div key={k} className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">{SIGNAL_LABELS[k] ?? k}</span>
-                      <span className={v > 0 ? 'text-green-600' : 'text-red-500'}>
-                        {v > 0 ? '+' : ''}{v}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Description */}
-                {detail.descriptionExcerpt && (
-                  <div>
-                    <p className="text-xs font-medium mb-1">Description excerpt</p>
-                    <p className="text-xs text-muted-foreground whitespace-pre-wrap">{detail.descriptionExcerpt}</p>
-                  </div>
-                )}
-
-                {/* Skills */}
-                {detail.extractedSkills?.length ? (
-                  <div>
-                    <p className="text-xs font-medium mb-1">Extracted skills</p>
-                    <div className="flex flex-wrap gap-1">
-                      {detail.extractedSkills.map(s => (
-                        <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Approve / Reject buttons in drawer */}
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    className="flex-1"
-                    onClick={() => setStatus(detail.id, 'approved')}
-                    disabled={loading.has(detail.id)}
-                  >
-                    Approve
-                  </Button>
-                  <Button
-                    className="flex-1"
-                    variant="destructive"
-                    onClick={() => setStatus(detail.id, 'rejected')}
-                    disabled={loading.has(detail.id)}
-                  >
-                    Reject
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
-    </>
+            {statuses[job.id] === 'pending' ? (
+              <>
+                <Button size="sm" variant="outline" disabled={loading[job.id]}
+                  onClick={() => updateStatus(job.id, 'approved')}
+                  className="text-emerald-700 border-emerald-300 hover:bg-emerald-50">
+                  <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve
+                </Button>
+                <Button size="sm" variant="outline" disabled={loading[job.id]}
+                  onClick={() => updateStatus(job.id, 'rejected')}
+                  className="text-red-700 border-red-300 hover:bg-red-50">
+                  <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                </Button>
+              </>
+            ) : (
+              <Badge variant={statuses[job.id] === 'approved' ? 'default' : 'destructive'} className="capitalize">
+                {statuses[job.id]}
+              </Badge>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }

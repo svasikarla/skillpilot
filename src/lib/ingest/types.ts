@@ -1,0 +1,60 @@
+export interface RawJob {
+  source_id: string        // unique ID from the source platform
+  source: string           // 'remotive' | 'remoteok' | 'himalayas'
+  title: string
+  company: string | null
+  description: string
+  platform: string         // display name shown in feed
+  url: string
+  skills: string[]
+  location: string
+  rate_min: number | null
+  rate_max: number | null
+  posted_at: string        // ISO datetime
+}
+
+export const AI_ML_KEYWORDS = [
+  'machine learning', 'ml engineer', 'deep learning', 'neural network',
+  'llm', 'large language model', 'gpt', 'claude', 'gemini', 'mistral',
+  'nlp', 'natural language', 'computer vision', 'cv engineer',
+  'data scientist', 'ai engineer', 'artificial intelligence',
+  'pytorch', 'tensorflow', 'hugging face', 'transformers',
+  'rag', 'retrieval augmented', 'vector search', 'embeddings',
+  'mlops', 'llmops', 'model deployment', 'model training',
+  'fine-tuning', 'finetuning', 'reinforcement learning', 'rlhf',
+  'langchain', 'llamaindex', 'openai', 'anthropic',
+  'scikit-learn', 'sklearn', 'xgboost', 'lightgbm',
+  'generative ai', 'gen ai', 'diffusion model', 'stable diffusion',
+]
+
+export function isAiMlJob(title: string, description: string, tags: string[]): boolean {
+  const text = `${title} ${description} ${tags.join(' ')}`.toLowerCase()
+  return AI_ML_KEYWORDS.some(kw => text.includes(kw))
+}
+
+export function extractSkillsFromTags(tags: string[]): string[] {
+  const SKILL_MAP: Record<string, string> = {
+    python: 'Python', pytorch: 'PyTorch', tensorflow: 'TensorFlow',
+    'machine-learning': 'Machine Learning', 'machine learning': 'Machine Learning',
+    'deep-learning': 'Deep Learning', 'deep learning': 'Deep Learning',
+    nlp: 'NLP', 'computer-vision': 'Computer Vision', 'computer vision': 'Computer Vision',
+    'hugging-face': 'Hugging Face', 'huggingface': 'Hugging Face',
+    llm: 'LLMs / Prompt Engineering', 'large-language-models': 'LLMs / Prompt Engineering',
+    rag: 'RAG / Vector Search', mlops: 'MLOps / LLMOps', llmops: 'MLOps / LLMOps',
+    'data-science': 'Data Science', 'data science': 'Data Science',
+    sql: 'SQL', docker: 'Docker', fastapi: 'FastAPI',
+    aws: 'Cloud (AWS/GCP/Azure)', gcp: 'Cloud (AWS/GCP/Azure)', azure: 'Cloud (AWS/GCP/Azure)',
+    'fine-tuning': 'Fine-tuning', finetuning: 'Fine-tuning',
+    'data-engineering': 'Data Engineering', 'data engineering': 'Data Engineering',
+  }
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const tag of tags) {
+    const mapped = SKILL_MAP[tag.toLowerCase()]
+    if (mapped && !seen.has(mapped)) {
+      seen.add(mapped)
+      result.push(mapped)
+    }
+  }
+  return result
+}

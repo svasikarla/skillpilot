@@ -1,17 +1,18 @@
+import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import AppNav from '@/components/AppNav'
+import { Trophy, Users, Target, TrendingUp, Medal } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-import { Star } from 'lucide-react'
-import { Separator } from '@/components/ui/separator'
+type PlatformStat = { platform: string; applied: number; won: number; win_rate: number }
+type RecentWin = { platform: string; rate: number | null }
 
-function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
-  return (
-    <div className="border rounded-lg p-4 text-center">
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-primary mt-0.5">{sub}</p>}
-    </div>
-  )
+async function fetchStats(siteUrl: string) {
+  try {
+    const res = await fetch(`${siteUrl}/api/community/stats`, { cache: 'no-store' })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
 }
 
 export default async function CommunityPage() {
@@ -19,120 +20,116 @@ export default async function CommunityPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Call Supabase directly from server component
-  const admin = await createAdminClient()
-  const since30 = new Date(Date.now() - 30 * 86_400_000).toISOString()
-  const since90 = new Date(Date.now() - 90 * 86_400_000).toISOString()
-
-  const [
-    { count: totalApps },
-    { count: totalWins },
-    { count: totalMembers },
-    { data: platformApps },
-    { data: recentReviews },
-    { data: topWin },
-  ] = await Promise.all([
-    admin.from('applications').select('id', { count: 'exact', head: true }).neq('status', 'saved').gte('created_at', since30),
-    admin.from('applications').select('id', { count: 'exact', head: true }).eq('status', 'won').gte('created_at', since30),
-    admin.from('members').select('id', { count: 'exact', head: true }).eq('is_active', true),
-    admin.from('applications').select('platform_id, status').gte('created_at', since90).not('platform_id', 'is', null),
-    admin.from('platform_reviews').select('review_text, rating, created_at, platforms ( name )').order('created_at', { ascending: false }).limit(5),
-    admin.from('applications').select('rate_agreed, platforms ( name )').eq('status', 'won').not('rate_agreed', 'is', null).order('rate_agreed', { ascending: false }).limit(1),
+  const [{ data: profile }, stats] = await Promise.all([
+    supabase.from('profiles').select('name').eq('user_id', user.id).single(),
+    fetchStats(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3001'),
   ])
 
-  // Best platform by win rate
-  const platStats = new Map<number, { wins: number; total: number }>()
-  for (const app of (platformApps ?? [])) {
-    const pid = app.platform_id as number
-    if (!platStats.has(pid)) platStats.set(pid, { wins: 0, total: 0 })
-    const s = platStats.get(pid)!
-    s.total++
-    if (app.status === 'won') s.wins++
-  }
-
-  let bestPlatId: number | null = null
-  let bestWinRate = 0
-  for (const [pid, s] of platStats) {
-    if (s.total >= 2 && s.wins / s.total > bestWinRate) {
-      bestWinRate = s.wins / s.total; bestPlatId = pid
-    }
-  }
-  let bestPlatName: string | null = null
-  if (bestPlatId !== null) {
-    const { data: p } = await admin.from('platforms').select('name').eq('id', bestPlatId).single()
-    bestPlatName = p?.name ?? null
-  }
-
-  type ReviewRow = { review_text: string; rating: number; created_at: string; platforms: { name: string } | { name: string }[] | null }
-  const reviews = (recentReviews ?? []).map(r => {
-    const row = r as unknown as ReviewRow
-    const plat = Array.isArray(row.platforms) ? row.platforms[0] : row.platforms
-    return { text: row.review_text, rating: row.rating, platform: plat?.name ?? '—' }
-  })
-
-  type WinRow = { rate_agreed: string | number; platforms: { name: string } | { name: string }[] | null }
-  const topWinRow = topWin?.[0] as unknown as WinRow | undefined
-  const topWinPlat = topWinRow?.platforms
-  const topWinPlatName = topWinPlat ? (Array.isArray(topWinPlat) ? topWinPlat[0]?.name : topWinPlat.name) : null
+  const hasData = stats && stats.total_applied > 0
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">Group Intelligence</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Aggregated, anonymised data from all {totalMembers ?? 0} active members.
-        </p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <AppNav userName={profile?.name} />
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Stat label="apps this month"  value={totalApps  ?? 0} />
-        <Stat label="wins this month"  value={totalWins  ?? 0} />
-        <Stat label="active members"   value={totalMembers ?? 0} />
-        <Stat
-          label="best platform"
-          value={bestPlatName ?? '—'}
-          sub={bestPlatName ? `${Math.round(bestWinRate * 100)}% win rate` : undefined}
-        />
-      </div>
-
-      {topWinRow && (
-        <div className="border rounded-lg p-4 bg-green-50 text-green-800">
-          <p className="text-sm font-medium">Highest agreed rate</p>
-          <p className="text-2xl font-bold mt-0.5">${Number(topWinRow.rate_agreed).toFixed(0)}/hr</p>
-          {topWinPlatName && <p className="text-xs mt-0.5">on {topWinPlatName}</p>}
+      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+        <div>
+          <h1 className="page-header">Group Intelligence</h1>
+          <p className="page-subheader">Anonymised outcomes from the group — last 30 days. Log applications in your tracker to contribute.</p>
         </div>
-      )}
 
-      {/* Platform reviews */}
-      {reviews.length > 0 && (
-        <div className="space-y-3">
-          <Separator />
-          <h2 className="text-sm font-semibold">Recent platform reviews</h2>
-          {reviews.map((r, i) => (
-            <div key={i} className="border rounded-lg p-3 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">{r.platform}</span>
-                <div className="flex gap-0.5">
-                  {Array.from({ length: 5 }, (_, j) => (
-                    <Star
-                      key={j}
-                      className={`h-3 w-3 ${j < r.rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted'}`}
-                    />
+        {!hasData ? (
+          <div className="text-center py-20 border border-dashed border-border rounded-xl">
+            <Users className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="font-medium">No group data yet</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Start tracking applications in the <a href="/tracker" className="text-primary underline">tracker</a> and mark outcomes to see collective stats here.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Stat cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { icon: Users,     label: 'Applications', value: String(stats.total_applied), sub: 'submitted this month', color: 'text-primary' },
+                { icon: Trophy,    label: 'Wins',          value: String(stats.total_won),     sub: 'contracts landed',     color: 'text-emerald-600' },
+                { icon: Target,    label: 'Win rate',      value: `${stats.win_rate}%`,         sub: 'of applications',      color: 'text-amber-600' },
+                { icon: TrendingUp, label: 'Avg win rate',  value: stats.avg_win_rate > 0 ? `$${stats.avg_win_rate}/hr` : '—', sub: 'when won', color: 'text-blue-600' },
+              ].map(({ icon: Icon, label, value, sub, color }) => (
+                <div key={label} className="stat-card">
+                  <Icon className={cn('h-4 w-4 mb-1', color)} />
+                  <p className="stat-value">{value}</p>
+                  <p className="stat-label">{label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Best platform */}
+            {stats.best_platform && (
+              <div className="card-base rounded-xl p-5 surface-brand border border-primary/15">
+                <div className="flex items-center gap-2 mb-2">
+                  <Medal className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-semibold text-primary uppercase tracking-wider">Best platform this month</span>
+                </div>
+                <p className="text-xl font-bold">{stats.best_platform.platform}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {stats.best_platform.applied} applied · {stats.best_platform.won} won · <span className="text-emerald-700 font-medium">{stats.best_platform.win_rate}% win rate</span>
+                </p>
+              </div>
+            )}
+
+            {/* Recent wins */}
+            {stats.recent_wins?.length > 0 && (
+              <div>
+                <h2 className="font-semibold mb-3 flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-emerald-600" />Recent group wins
+                </h2>
+                <div className="space-y-2">
+                  {(stats.recent_wins as RecentWin[]).map((win, i) => (
+                    <div key={i} className="card-base rounded-lg px-4 py-3 flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Contract on <strong className="text-foreground">{win.platform}</strong></span>
+                      {win.rate && <span className="font-semibold text-emerald-700">${win.rate}/hr</span>}
+                    </div>
                   ))}
                 </div>
               </div>
-              <p className="text-sm">{r.text}</p>
-            </div>
-          ))}
-        </div>
-      )}
+            )}
 
-      {reviews.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-8">
-          No platform reviews yet. Be the first — add a review from the Platforms page.
-        </p>
-      )}
+            {/* Platform leaderboard */}
+            {stats.platform_stats?.length > 0 && (
+              <div>
+                <h2 className="font-semibold mb-3">Platform breakdown</h2>
+                <div className="card-base rounded-xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Platform</th>
+                        <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Applied</th>
+                        <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Won</th>
+                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Win rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {(stats.platform_stats as PlatformStat[]).map(p => (
+                        <tr key={p.platform} className="hover:bg-muted/20 transition-colors">
+                          <td className="px-4 py-3 font-medium">{p.platform}</td>
+                          <td className="px-4 py-3 text-center text-muted-foreground">{p.applied}</td>
+                          <td className="px-4 py-3 text-center text-muted-foreground">{p.won}</td>
+                          <td className="px-4 py-3 text-right font-semibold">
+                            <span className={p.win_rate >= 30 ? 'text-emerald-700' : p.win_rate >= 15 ? 'text-amber-700' : 'text-muted-foreground'}>
+                              {p.win_rate}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </main>
     </div>
   )
 }

@@ -1,166 +1,115 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { PROPOSAL, MODELS } from '@/lib/config'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const DAILY_LIMIT = 15
 
-interface GenerateBody {
-  jobId:          string
-  memberValue:    string   // "what value I bring"
-  pastResult:     string   // "one measurable past result"
-  clientQuestion: string   // "question for the client"
+const PLATFORM_STYLE: Record<string, string> = {
+  Upwork:     'Conversational, direct, specific. First sentence must hook with your exact experience. No fluff. Max 150 words for concise variant.',
+  Toptal:     'Professional, technical, confident. Emphasise seniority and past outcomes. Structured with clear value proposition.',
+  Contra:     'Friendly, founder-to-founder tone. Show personality and specific past work. Shorter is better.',
+  Braintrust: 'Technical and results-focused. Use numbers wherever possible. Mention availability and timezone explicitly.',
+  default:    'Professional, concise, results-focused. Hook first. Numbers over adjectives. End with one smart question.',
 }
 
-interface ProposalVariants {
-  concise:  string   // 140–150 words
-  standard: string   // 175–185 words
-  detailed: string   // 210–220 words
-}
-
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await req.json() as GenerateBody
-  const { jobId, memberValue, pastResult, clientQuestion } = body
-
-  if (!memberValue?.trim() || !pastResult?.trim() || !clientQuestion?.trim()) {
-    return NextResponse.json({ error: 'All three fields are required' }, { status: 400 })
-  }
-
-  // Check daily limit
-  const admin = await createAdminClient()
-  const since = new Date(Date.now() - 86_400_000).toISOString()
-  const { count } = await admin
+  // Rate limit check
+  const dayAgo = new Date(Date.now() - 86400000).toISOString()
+  const { count } = await supabase
     .from('proposal_logs')
-    .select('id', { count: 'exact', head: true })
-    .eq('member_id', user.id)
-    .gte('generated_at', since)
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('generated_at', dayAgo)
 
-  if ((count ?? 0) >= PROPOSAL.dailyLimit) {
-    return NextResponse.json(
-      { error: `Daily proposal limit reached (${PROPOSAL.dailyLimit}/day). Try again tomorrow.` },
-      { status: 429 }
-    )
+  if ((count ?? 0) >= DAILY_LIMIT) {
+    return NextResponse.json({ error: `Daily limit of ${DAILY_LIMIT} proposals reached. Resets in 24 hours.` }, { status: 429 })
   }
 
-  // Load job + platform
+  const { job_id, member_value, past_result, question_for_client } = await request.json()
+
+  if (!member_value || !past_result || !question_for_client) {
+    return NextResponse.json({ error: 'All three inputs are required' }, { status: 400 })
+  }
+
+  // Fetch job details
   const { data: job } = await supabase
     .from('jobs')
-    .select(`
-      title, description_excerpt, extracted_skills, rate_min, rate_max,
-      platforms ( name, platform_tips, application_guide )
-    `)
-    .eq('id', jobId)
+    .select('title, company, platform, description, skills, rate_min, rate_max')
+    .eq('id', job_id)
     .single()
 
   if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 })
 
-  // Load member profile
-  const { data: member } = await supabase
-    .from('members')
-    .select('display_name, about, target_hourly_rate, years_experience, portfolio')
-    .eq('id', user.id)
+  // Fetch user profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('name, skills, hourly_rate')
+    .eq('user_id', user.id)
     .single()
 
-  const { data: memberSkills } = await supabase
-    .from('member_skills')
-    .select('self_rating, skills ( name )')
-    .eq('member_id', user.id)
-    .gte('self_rating', 3)
-    .order('self_rating', { ascending: false })
-    .limit(10)
-
-  const skillNames = (memberSkills ?? []).flatMap((r: { skills: Array<{ name: string }> | { name: string } | null }) => {
-    if (!r.skills) return []
-    return Array.isArray(r.skills) ? r.skills.map(s => s.name) : [r.skills.name]
-  })
-
-  // Find best portfolio item (first one for now)
-  const portfolio = Array.isArray(member?.portfolio) ? member.portfolio as Array<{ name?: string; description?: string; outcome?: string }> : []
-  const bestPortfolio = portfolio[0]
-
-  type PlatRow = { name: string; platform_tips: string | null; application_guide: string | null }
-  const platRaw = job.platforms as PlatRow | PlatRow[] | null
-  const plat    = platRaw ? (Array.isArray(platRaw) ? platRaw[0] : platRaw) : null
-
-  // Extract platform style tip
-  const styleTip = plat?.platform_tips
-    ? plat.platform_tips.split('\n').slice(0, 3).join(' ')
-    : 'Lead with your strongest result in the first two lines.'
+  const platformStyle = PLATFORM_STYLE[job.platform] ?? PLATFORM_STYLE.default
+  const rateRange = job.rate_min && job.rate_max ? `$${job.rate_min}–$${job.rate_max}/hr` : 'not specified'
 
   const systemPrompt = `You are an expert freelance proposal writer for AI/ML professionals.
-Write three proposal variants for a job application. Return ONLY valid JSON — no prose, no markdown wrapping.
+You write proposals that win work — not corporate fluff.
 
-Return this exact JSON shape:
-{
-  "concise":  "...",
-  "standard": "...",
-  "detailed": "..."
-}
+PLATFORM STYLE for ${job.platform}: ${platformStyle}
 
-Word count targets:
-- concise:  ${PROPOSAL.variants.concise.min}–${PROPOSAL.variants.concise.max} words
-- standard: ${PROPOSAL.variants.standard.min}–${PROPOSAL.variants.standard.max} words
-- detailed: ${PROPOSAL.variants.detailed.min}–${PROPOSAL.variants.detailed.max} words
+STRICT RULES (never break these):
+- Never use: "leverage", "delve", "robustly", "synergy", "excited to", "passionate about", "I would love to"
+- Never use em-dashes (—)
+- Never start with "I"
+- Vary sentence length — mix short punchy sentences with longer explanatory ones
+- Hook must be in the first sentence — no "My name is..." openers
+- Include exactly ONE question at the end
+- No bullet points, no headers — flowing prose only
 
-Rules:
-- NEVER start with "I" — open with the client's problem or a result
-- The first 2 lines must hook the reader (${plat?.name ?? 'clients'} shows only a preview)
-- Be specific — reference the job title or their stack
-- Include the past result naturally with a number
-- End with the client question
-- No generic phrases: "passionate about", "team player", "would love to", "looking forward"
-- No em-dashes (—) — use commas or periods instead
+OUTPUT: Return a JSON object with three keys: "concise" (140-150 words), "standard" (175-185 words), "detailed" (210-220 words). Nothing else.`
 
-Platform: ${plat?.name ?? 'General'}
-Platform style guidance: ${styleTip}`
+  const userMessage = `Write 3 proposal variants for this freelance job:
 
-  const userPrompt = `Job: ${job.title}
-Required skills: ${(job.extracted_skills ?? []).join(', ')}
-Job excerpt: ${job.description_excerpt ?? '(no excerpt)'}
+JOB: ${job.title} at ${job.company ?? 'a company'}
+PLATFORM: ${job.platform}
+RATE: ${rateRange}
+REQUIRED SKILLS: ${(job.skills ?? []).join(', ')}
+JOB DESCRIPTION (excerpt): ${(job.description ?? '').slice(0, 600)}
 
-My profile:
-- Skills: ${skillNames.join(', ')}
-- Experience: ${member?.years_experience ?? '?'} years
-- About: ${member?.about?.slice(0, 200) ?? '(no bio)'}
-${bestPortfolio ? `- Best portfolio match: ${bestPortfolio.name} — ${bestPortfolio.description ?? ''} — Result: ${bestPortfolio.outcome ?? ''}` : ''}
+FREELANCER:
+- Name: ${profile?.name ?? 'the applicant'}
+- Skills: ${(profile?.skills ?? []).slice(0, 8).join(', ')}
+- Target rate: ${profile?.hourly_rate ? `$${profile.hourly_rate}/hr` : 'not specified'}
 
-Context I'm providing:
-- Value I bring: ${memberValue}
-- Past result: ${pastResult}
-- Question for client: ${clientQuestion}`
+FREELANCER INPUTS:
+1. Specific value I bring: ${member_value}
+2. Measurable past result: ${past_result}
+3. Question for client: ${question_for_client}
+
+Return only the JSON object with "concise", "standard", and "detailed" keys.`
 
   try {
-    const response = await anthropic.messages.create({
-      model:      MODELS.proposals,
-      max_tokens: 1024,
-      messages:   [
-        { role: 'user', content: `${systemPrompt}\n\n${userPrompt}` }
-      ],
+    const message = await anthropic.messages.create({
+      model:      'claude-haiku-4-5-20251001',
+      max_tokens: 1200,
+      system:     systemPrompt,
+      messages:   [{ role: 'user', content: userMessage }],
     })
 
-    const raw = response.content[0].type === 'text' ? response.content[0].text : ''
-    // Strip any markdown code fences if present
-    const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
-    const variants: ProposalVariants = JSON.parse(cleaned)
+    const raw = (message.content[0] as { type: string; text: string }).text.trim()
+    const jsonMatch = raw.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) throw new Error('No JSON in response')
+    const variants = JSON.parse(jsonMatch[0]) as { concise: string; standard: string; detailed: string }
 
-    if (!variants.concise || !variants.standard || !variants.detailed) {
-      throw new Error('Incomplete response from AI')
-    }
-
-    // Log without storing text
-    await admin.from('proposal_logs').insert({
-      member_id:  user.id,
-      job_id:     jobId,
-      platform_id: null,
-    })
+    // Log usage
+    await supabase.from('proposal_logs').insert({ user_id: user.id, job_id: job_id ?? null })
 
     return NextResponse.json({ variants })
   } catch (err) {
-    console.error('[proposals/generate] error:', err)
-    return NextResponse.json({ error: 'Failed to generate proposals. Please try again.' }, { status: 500 })
+    console.error('[proposals/generate]', err)
+    return NextResponse.json({ error: 'Generation failed — try again' }, { status: 500 })
   }
 }

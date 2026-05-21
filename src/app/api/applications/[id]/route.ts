@@ -1,39 +1,49 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-// PATCH /api/applications/[id] — update status, rate, notes, outcome
-export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await req.json() as {
-    status?:        string
-    rateProposed?:  number | null
-    rateAgreed?:    number | null
-    daysToResponse?: number | null
-    notes?:         string
-    appliedAt?:     string | null
+  const { id } = await params
+  const body = await request.json()
+  const { status, rate_proposed, rate_agreed, notes, applied_at } = body
+
+  const VALID_STATUSES = ['saved','in_progress','submitted','interviewing','negotiating','won','lost','no_response','withdrawn']
+  if (status && !VALID_STATUSES.includes(status)) {
+    return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
   }
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
-  if (body.status         !== undefined) update.status           = body.status
-  if (body.rateProposed   !== undefined) update.rate_proposed    = body.rateProposed
-  if (body.rateAgreed     !== undefined) update.rate_agreed      = body.rateAgreed
-  if (body.daysToResponse !== undefined) update.days_to_response = body.daysToResponse
-  if (body.notes          !== undefined) update.notes            = body.notes
-  if (body.appliedAt      !== undefined) update.applied_at       = body.appliedAt
+  if (status)        update.status        = status
+  if (rate_proposed) update.rate_proposed = rate_proposed
+  if (rate_agreed)   update.rate_agreed   = rate_agreed
+  if (notes !== undefined) update.notes   = notes
+  if (applied_at)    update.applied_at    = applied_at
 
-  const { error } = await supabase
+  // Auto-set applied_at when transitioning to submitted
+  if (status === 'submitted' && !applied_at) update.applied_at = new Date().toISOString()
+
+  const { data, error } = await supabase
     .from('applications')
     .update(update)
     .eq('id', id)
-    .eq('member_id', user.id)   // can only update own applications
+    .eq('user_id', user.id)
+    .select()
+    .single()
 
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ application: data })
+}
+
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id } = await params
+  const { error } = await supabase.from('applications').delete().eq('id', id).eq('user_id', user.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

@@ -1,109 +1,82 @@
 'use client'
 
-import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
-import type { RoadmapSkill } from '@/lib/roadmap'
+import { ExternalLink, TrendingUp, BookOpen, Zap } from 'lucide-react'
+import type { SkillGap } from '@/lib/roadmap'
 
-interface Props { items: RoadmapSkill[] }
-
-const STATUS_LABELS = { active: 'Not planned', learning: 'Learning', planned: 'Planned' } as const
-const STATUS_NEXT: Record<string, 'learning' | 'planned' | 'active'> = {
-  active:   'learning',
-  planned:  'learning',
-  learning: 'active',
-}
-const FORMAT_ICONS: Record<string, string> = {
-  course: '🎓', video: '▶️', docs: '📄', book: '📚',
-}
-
-export default function RoadmapClient({ items: initial }: Props) {
-  const [items,   setItems]   = useState(initial)
-  const [loading, setLoading] = useState<string | null>(null)
-
-  async function toggleStatus(skillName: string, current: string) {
-    const next = STATUS_NEXT[current] ?? 'learning'
-    setLoading(skillName)
-    try {
-      const res = await fetch('/api/profile/skills/status', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ skillName, status: next }),
-      })
-      if (!res.ok) { toast.error('Could not update skill status'); return }
-      setItems(prev => prev.map(i => i.skillName === skillName ? { ...i, status: next } : i))
-      toast.success(next === 'learning' ? `Marked "${skillName}" as Learning` : `Unmarked "${skillName}"`)
-    } finally {
-      setLoading(null)
-    }
-  }
-
-  if (items.length === 0) {
-    return (
-      <div className="py-16 text-center text-muted-foreground">
-        <p className="text-base">No skill gaps found.</p>
-        <p className="text-sm mt-1">Your profile matches all skills in current approved jobs — great work!</p>
+function ImpactBar({ value, max }: { value: number; max: number }) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
       </div>
-    )
-  }
+      <span className="text-xs text-muted-foreground w-8 text-right">{pct}%</span>
+    </div>
+  )
+}
+
+export default function RoadmapClient({ gaps }: { gaps: SkillGap[] }) {
+  const maxRoi = gaps[0]?.roi ?? 1
 
   return (
     <div className="space-y-3">
-      {items.map(item => (
-        <div key={item.skillName} className="border rounded-lg p-4 flex flex-col sm:flex-row gap-4">
-          {/* Left: skill info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium text-sm">{item.skillName}</span>
-              <Badge
-                variant={item.status === 'learning' ? 'default' : 'outline'}
-                className="text-xs"
-              >
-                {STATUS_LABELS[item.status] ?? item.status}
-              </Badge>
-            </div>
+      <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground font-medium px-4 hidden md:grid">
+        <span>Skill</span>
+        <span className="text-center">Jobs unlocked</span>
+        <span className="text-center">Avg rate</span>
+        <span>Impact</span>
+      </div>
 
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-              <span>{item.jobsUnlocked} jobs unlocked</span>
-              {item.avgRate > 0 && <span>avg ${item.avgRate}/hr</span>}
-              <span className="text-primary font-medium">ROI score: {item.roi}</span>
-            </div>
-
-            {item.resource && (
-              <div className="mt-2 text-xs">
-                <span className="text-muted-foreground mr-1">{FORMAT_ICONS[item.resource.format] ?? '📄'}</span>
-                <a
-                  href={item.resource.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  {item.resource.title}
-                </a>
-                <span className="text-muted-foreground ml-1">
-                  · {item.resource.provider} · ~{item.resource.estHours}h · {item.resource.isFree ? 'Free' : 'Paid'}
-                </span>
+      {gaps.map((gap, i) => (
+        <div key={gap.skill} className="border rounded-lg p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground w-5 shrink-0">{i + 1}</span>
+              <div>
+                <p className="font-medium text-sm">{gap.skill}</p>
+                {gap.resource && (
+                  <a
+                    href={gap.resource.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-0.5"
+                  >
+                    <BookOpen className="h-3 w-3" />
+                    {gap.resource.title} — {gap.resource.provider}
+                    <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                )}
               </div>
-            )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {gap.resource && (
+                <Badge variant="outline" className="text-xs">
+                  ~{gap.resource.est_hours}h · {gap.resource.cost}
+                </Badge>
+              )}
+            </div>
           </div>
 
-          {/* Right: action */}
-          <div className="flex-shrink-0 flex items-start">
-            <Button
-              size="sm"
-              variant={item.status === 'learning' ? 'default' : 'outline'}
-              className="text-xs h-7"
-              disabled={loading === item.skillName}
-              onClick={() => toggleStatus(item.skillName, item.status)}
-            >
-              {loading === item.skillName
-                ? '…'
-                : item.status === 'learning'
-                  ? 'Mark done'
-                  : 'Start learning'}
-            </Button>
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Zap className="h-3.5 w-3.5 text-yellow-500" />
+              <span className="text-xs">{gap.jobsUnlocked} jobs need this</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="text-xs">
+                {gap.avgRate > 0 ? `$${gap.avgRate}/hr avg` : 'Rate varies'}
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {gap.resource?.format && (
+                <Badge variant="secondary" className="text-xs capitalize">{gap.resource.format}</Badge>
+              )}
+            </div>
           </div>
+
+          <ImpactBar value={gap.roi} max={maxRoi} />
         </div>
       ))}
     </div>

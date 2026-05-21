@@ -1,124 +1,136 @@
-export type SkillCluster =
-  | 'LLM Core'
-  | 'LLM Orchestration'
-  | 'RAG'
-  | 'Agents'
-  | 'Fine-tuning'
-  | 'MLOps'
-  | 'Computer Vision'
-  | 'Data Engineering'
-  | 'Cloud ML'
-  | 'Languages'
-
-export interface SkillDef {
-  name: string
-  cluster: SkillCluster
+export interface Skill {
+  id: string    // kebab-case unique key
+  name: string  // display name
+  cluster: string
 }
 
-export const SKILLS_TAXONOMY: SkillDef[] = [
-  // LLM Core
-  { name: 'OpenAI API',      cluster: 'LLM Core' },
-  { name: 'Anthropic API',   cluster: 'LLM Core' },
-  { name: 'Gemini API',      cluster: 'LLM Core' },
-  { name: 'Mistral',         cluster: 'LLM Core' },
-  { name: 'Llama',           cluster: 'LLM Core' },
-  { name: 'vLLM',            cluster: 'LLM Core' },
-  { name: 'Ollama',          cluster: 'LLM Core' },
-  { name: 'TGI',             cluster: 'LLM Core' },
-  { name: 'SGLang',          cluster: 'LLM Core' },
+export const SKILL_CLUSTERS = [
+  'LLM Core',
+  'LLM Orchestration',
+  'RAG & Vector Search',
+  'Agents & Automation',
+  'Fine-tuning',
+  'MLOps & LLMOps',
+  'Computer Vision',
+  'NLP',
+  'Data Engineering',
+  'Languages & Frameworks',
+] as const
 
-  // LLM Orchestration
-  { name: 'LangChain',       cluster: 'LLM Orchestration' },
-  { name: 'LlamaIndex',      cluster: 'LLM Orchestration' },
-  { name: 'DSPy',            cluster: 'LLM Orchestration' },
-  { name: 'Pydantic AI',     cluster: 'LLM Orchestration' },
-  { name: 'Instructor',      cluster: 'LLM Orchestration' },
-  { name: 'Haystack',        cluster: 'LLM Orchestration' },
+export type SkillCluster = typeof SKILL_CLUSTERS[number]
 
-  // RAG
-  { name: 'pgvector',        cluster: 'RAG' },
-  { name: 'Pinecone',        cluster: 'RAG' },
-  { name: 'Qdrant',          cluster: 'RAG' },
-  { name: 'Weaviate',        cluster: 'RAG' },
-  { name: 'Chroma',          cluster: 'RAG' },
-  { name: 'Milvus',          cluster: 'RAG' },
-  { name: 'BM25',            cluster: 'RAG' },
-  { name: 'Reranking',       cluster: 'RAG' },
-  { name: 'HyDE',            cluster: 'RAG' },
-  { name: 'ColBERT',         cluster: 'RAG' },
-  { name: 'Voyage AI',       cluster: 'RAG' },
-  { name: 'Cohere Embed',    cluster: 'RAG' },
+export const SKILLS_TAXONOMY: Skill[] = [
+  // ── LLM Core ───────────────────────────────────────────────────────────────
+  { id: 'openai-api',          name: 'OpenAI API',              cluster: 'LLM Core' },
+  { id: 'anthropic-api',       name: 'Anthropic / Claude API',  cluster: 'LLM Core' },
+  { id: 'prompt-engineering',  name: 'Prompt Engineering',      cluster: 'LLM Core' },
+  { id: 'function-calling',    name: 'Function Calling / Tools',cluster: 'LLM Core' },
+  { id: 'gpt4',                name: 'GPT-4 / GPT-4o',          cluster: 'LLM Core' },
+  { id: 'llama-mistral',       name: 'Llama / Mistral / Phi',   cluster: 'LLM Core' },
+  { id: 'gemini',              name: 'Gemini',                  cluster: 'LLM Core' },
+  { id: 'system-prompts',      name: 'System Prompt Design',    cluster: 'LLM Core' },
+  { id: 'json-mode',           name: 'Structured Output / JSON Mode', cluster: 'LLM Core' },
 
-  // Agents
-  { name: 'LangGraph',       cluster: 'Agents' },
-  { name: 'CrewAI',          cluster: 'Agents' },
-  { name: 'AutoGen',         cluster: 'Agents' },
-  { name: 'MCP',             cluster: 'Agents' },
-  { name: 'OpenAI Agents SDK', cluster: 'Agents' },
-  { name: 'Browser Use',     cluster: 'Agents' },
+  // ── LLM Orchestration ──────────────────────────────────────────────────────
+  { id: 'langchain',           name: 'LangChain',               cluster: 'LLM Orchestration' },
+  { id: 'llamaindex',          name: 'LlamaIndex',              cluster: 'LLM Orchestration' },
+  { id: 'langgraph',           name: 'LangGraph',               cluster: 'LLM Orchestration' },
+  { id: 'autogen',             name: 'AutoGen / CrewAI',        cluster: 'LLM Orchestration' },
+  { id: 'semantic-kernel',     name: 'Semantic Kernel',         cluster: 'LLM Orchestration' },
+  { id: 'haystack',            name: 'Haystack',                cluster: 'LLM Orchestration' },
+  { id: 'vercel-ai-sdk',       name: 'Vercel AI SDK',           cluster: 'LLM Orchestration' },
 
-  // Fine-tuning
-  { name: 'LoRA',            cluster: 'Fine-tuning' },
-  { name: 'QLoRA',           cluster: 'Fine-tuning' },
-  { name: 'PEFT',            cluster: 'Fine-tuning' },
-  { name: 'TRL',             cluster: 'Fine-tuning' },
-  { name: 'Unsloth',         cluster: 'Fine-tuning' },
-  { name: 'Axolotl',         cluster: 'Fine-tuning' },
-  { name: 'DPO',             cluster: 'Fine-tuning' },
-  { name: 'RLHF',            cluster: 'Fine-tuning' },
-  { name: 'KTO',             cluster: 'Fine-tuning' },
+  // ── RAG & Vector Search ────────────────────────────────────────────────────
+  { id: 'rag-pipelines',       name: 'RAG Pipelines',           cluster: 'RAG & Vector Search' },
+  { id: 'pgvector',            name: 'pgvector',                cluster: 'RAG & Vector Search' },
+  { id: 'pinecone',            name: 'Pinecone',                cluster: 'RAG & Vector Search' },
+  { id: 'weaviate',            name: 'Weaviate',                cluster: 'RAG & Vector Search' },
+  { id: 'chroma-faiss',        name: 'Chroma / FAISS',          cluster: 'RAG & Vector Search' },
+  { id: 'qdrant',              name: 'Qdrant',                  cluster: 'RAG & Vector Search' },
+  { id: 'embedding-models',    name: 'Embedding Models',        cluster: 'RAG & Vector Search' },
+  { id: 'hybrid-search',       name: 'Hybrid Search',           cluster: 'RAG & Vector Search' },
 
-  // MLOps
-  { name: 'MLflow',          cluster: 'MLOps' },
-  { name: 'Weights & Biases',cluster: 'MLOps' },
-  { name: 'Kubeflow',        cluster: 'MLOps' },
-  { name: 'BentoML',         cluster: 'MLOps' },
-  { name: 'Modal',           cluster: 'MLOps' },
-  { name: 'Replicate',       cluster: 'MLOps' },
-  { name: 'Docker',          cluster: 'MLOps' },
-  { name: 'Kubernetes',      cluster: 'MLOps' },
+  // ── Agents & Automation ────────────────────────────────────────────────────
+  { id: 'react-agents',        name: 'ReAct Agents',            cluster: 'Agents & Automation' },
+  { id: 'openai-assistants',   name: 'OpenAI Assistants API',   cluster: 'Agents & Automation' },
+  { id: 'browser-automation',  name: 'Browser Automation',      cluster: 'Agents & Automation' },
+  { id: 'code-interpreter',    name: 'Code Interpreter',        cluster: 'Agents & Automation' },
+  { id: 'n8n-zapier',         name: 'n8n / Zapier AI',         cluster: 'Agents & Automation' },
+  { id: 'multi-agent',         name: 'Multi-Agent Systems',     cluster: 'Agents & Automation' },
+  { id: 'mcp',                 name: 'MCP (Model Context Protocol)', cluster: 'Agents & Automation' },
 
-  // Computer Vision
-  { name: 'YOLO',            cluster: 'Computer Vision' },
-  { name: 'SAM',             cluster: 'Computer Vision' },
-  { name: 'CLIP',            cluster: 'Computer Vision' },
-  { name: 'Diffusion Models',cluster: 'Computer Vision' },
-  { name: 'ComfyUI',         cluster: 'Computer Vision' },
-  { name: 'Detectron2',      cluster: 'Computer Vision' },
-  { name: 'OpenCV',          cluster: 'Computer Vision' },
+  // ── Fine-tuning ────────────────────────────────────────────────────────────
+  { id: 'lora-qlora',          name: 'LoRA / QLoRA',            cluster: 'Fine-tuning' },
+  { id: 'sft',                 name: 'Supervised Fine-tuning',  cluster: 'Fine-tuning' },
+  { id: 'dpo-rlhf',           name: 'DPO / RLHF',              cluster: 'Fine-tuning' },
+  { id: 'dataset-curation',    name: 'Dataset Curation',        cluster: 'Fine-tuning' },
+  { id: 'peft',                name: 'PEFT',                    cluster: 'Fine-tuning' },
+  { id: 'unsloth',             name: 'Unsloth',                 cluster: 'Fine-tuning' },
+  { id: 'hf-trl',              name: 'Hugging Face TRL',        cluster: 'Fine-tuning' },
 
-  // Data Engineering
-  { name: 'dbt',             cluster: 'Data Engineering' },
-  { name: 'Polars',          cluster: 'Data Engineering' },
-  { name: 'DuckDB',          cluster: 'Data Engineering' },
-  { name: 'Airflow',         cluster: 'Data Engineering' },
-  { name: 'Dagster',         cluster: 'Data Engineering' },
-  { name: 'Spark',           cluster: 'Data Engineering' },
-  { name: 'Snowflake',       cluster: 'Data Engineering' },
-  { name: 'Databricks',      cluster: 'Data Engineering' },
+  // ── MLOps & LLMOps ────────────────────────────────────────────────────────
+  { id: 'mlflow',              name: 'MLflow',                  cluster: 'MLOps & LLMOps' },
+  { id: 'wandb',               name: 'Weights & Biases',        cluster: 'MLOps & LLMOps' },
+  { id: 'langsmith',           name: 'LangSmith / LangFuse',    cluster: 'MLOps & LLMOps' },
+  { id: 'vllm-tgi',            name: 'vLLM / TGI (Model Serving)', cluster: 'MLOps & LLMOps' },
+  { id: 'docker',              name: 'Docker',                  cluster: 'MLOps & LLMOps' },
+  { id: 'kubernetes',          name: 'Kubernetes',              cluster: 'MLOps & LLMOps' },
+  { id: 'cicd-ml',             name: 'CI/CD for ML',            cluster: 'MLOps & LLMOps' },
+  { id: 'monitoring-ml',       name: 'Model Monitoring / Drift',cluster: 'MLOps & LLMOps' },
 
-  // Cloud ML
-  { name: 'AWS SageMaker',   cluster: 'Cloud ML' },
-  { name: 'Google Vertex AI',cluster: 'Cloud ML' },
-  { name: 'Azure ML',        cluster: 'Cloud ML' },
-  { name: 'AWS Bedrock',     cluster: 'Cloud ML' },
+  // ── Computer Vision ────────────────────────────────────────────────────────
+  { id: 'pytorch-vision',      name: 'PyTorch (Vision)',        cluster: 'Computer Vision' },
+  { id: 'object-detection',    name: 'Object Detection (YOLO)', cluster: 'Computer Vision' },
+  { id: 'image-segmentation',  name: 'Image Segmentation',      cluster: 'Computer Vision' },
+  { id: 'opencv',              name: 'OpenCV',                  cluster: 'Computer Vision' },
+  { id: 'diffusion-models',    name: 'Diffusion Models (SD/FLUX)', cluster: 'Computer Vision' },
+  { id: 'clip',                name: 'CLIP / Vision-Language',  cluster: 'Computer Vision' },
+  { id: 'video-analysis',      name: 'Video Analysis',          cluster: 'Computer Vision' },
 
-  // Languages
-  { name: 'Python',          cluster: 'Languages' },
-  { name: 'TypeScript',      cluster: 'Languages' },
-  { name: 'Rust',            cluster: 'Languages' },
-  { name: 'SQL',             cluster: 'Languages' },
-  { name: 'Julia',           cluster: 'Languages' },
+  // ── NLP ────────────────────────────────────────────────────────────────────
+  { id: 'hf-transformers',     name: 'HuggingFace Transformers',cluster: 'NLP' },
+  { id: 'text-classification', name: 'Text Classification',     cluster: 'NLP' },
+  { id: 'ner',                 name: 'NER (Named Entity Recognition)', cluster: 'NLP' },
+  { id: 'spacy',               name: 'spaCy',                   cluster: 'NLP' },
+  { id: 'sentiment-analysis',  name: 'Sentiment Analysis',      cluster: 'NLP' },
+  { id: 'text-generation',     name: 'Text Generation',         cluster: 'NLP' },
+  { id: 'summarization',       name: 'Summarization',           cluster: 'NLP' },
+  { id: 'translation',         name: 'Machine Translation',     cluster: 'NLP' },
+
+  // ── Data Engineering ───────────────────────────────────────────────────────
+  { id: 'pandas-polars',       name: 'Pandas / Polars',         cluster: 'Data Engineering' },
+  { id: 'pyspark',             name: 'PySpark',                 cluster: 'Data Engineering' },
+  { id: 'sql',                 name: 'SQL',                     cluster: 'Data Engineering' },
+  { id: 'dbt',                 name: 'dbt',                     cluster: 'Data Engineering' },
+  { id: 'airflow',             name: 'Airflow / Prefect',       cluster: 'Data Engineering' },
+  { id: 'kafka',               name: 'Kafka',                   cluster: 'Data Engineering' },
+  { id: 'feature-engineering', name: 'Feature Engineering',     cluster: 'Data Engineering' },
+  { id: 'data-pipelines',      name: 'Data Pipelines',          cluster: 'Data Engineering' },
+
+  // ── Languages & Frameworks ─────────────────────────────────────────────────
+  { id: 'python',              name: 'Python',                  cluster: 'Languages & Frameworks' },
+  { id: 'pytorch',             name: 'PyTorch',                 cluster: 'Languages & Frameworks' },
+  { id: 'tensorflow',          name: 'TensorFlow / JAX',        cluster: 'Languages & Frameworks' },
+  { id: 'sklearn',             name: 'Scikit-learn',            cluster: 'Languages & Frameworks' },
+  { id: 'fastapi',             name: 'FastAPI',                 cluster: 'Languages & Frameworks' },
+  { id: 'typescript',          name: 'TypeScript / JavaScript', cluster: 'Languages & Frameworks' },
+  { id: 'aws-sagemaker',       name: 'AWS SageMaker',           cluster: 'Languages & Frameworks' },
+  { id: 'gcp-vertex',          name: 'GCP Vertex AI',           cluster: 'Languages & Frameworks' },
+  { id: 'azure-ml',            name: 'Azure ML',                cluster: 'Languages & Frameworks' },
 ]
 
-export const CLUSTERS: SkillCluster[] = [
-  'LLM Core', 'LLM Orchestration', 'RAG', 'Agents', 'Fine-tuning',
-  'MLOps', 'Computer Vision', 'Data Engineering', 'Cloud ML', 'Languages',
-]
+export function getSkillsByCluster(): Record<string, Skill[]> {
+  return SKILLS_TAXONOMY.reduce<Record<string, Skill[]>>((acc, skill) => {
+    if (!acc[skill.cluster]) acc[skill.cluster] = []
+    acc[skill.cluster].push(skill)
+    return acc
+  }, {})
+}
 
-export function getSkillsByCluster(): Record<SkillCluster, SkillDef[]> {
-  const result = {} as Record<SkillCluster, SkillDef[]>
-  for (const cluster of CLUSTERS) result[cluster] = []
-  for (const skill of SKILLS_TAXONOMY) result[skill.cluster].push(skill)
-  return result
+export function getSkillNames(): string[] {
+  return SKILLS_TAXONOMY.map(s => s.name)
+}
+
+export function findSkillByName(name: string): Skill | undefined {
+  return SKILLS_TAXONOMY.find(s => s.name.toLowerCase() === name.toLowerCase())
 }
