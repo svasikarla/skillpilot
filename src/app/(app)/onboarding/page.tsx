@@ -221,7 +221,7 @@ export default function OnboardingPage() {
                   </div>
                   <div className="space-y-1">
                     <Label>Timezone</Label>
-                    <Select value={timezone} onValueChange={setTimezone}>
+                    <Select value={timezone} onValueChange={v => setTimezone(v ?? '')}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {TIMEZONES.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
@@ -231,7 +231,7 @@ export default function OnboardingPage() {
                 </div>
                 <div className="space-y-1">
                   <Label>Preferred work type</Label>
-                  <Select value={workPref} onValueChange={setWorkPref}>
+                  <Select value={workPref} onValueChange={v => setWorkPref(v ?? '')}>
                     <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="short_project">Short projects (1–4 weeks)</SelectItem>
