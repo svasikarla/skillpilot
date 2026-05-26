@@ -5,7 +5,7 @@ export interface RawJob {
   company: string | null
   description: string
   platform: string         // display name shown in feed
-  url: string
+  url: string | null
   skills: string[]
   location: string
   rate_min: number | null

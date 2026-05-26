@@ -23,11 +23,11 @@ export async function GET() {
   // Group by job and count
   const grouped = new Map<string, { job_id: string; title: string; platform: string; url: string | null; count: number; reasons: string[] }>()
   for (const r of data ?? []) {
-    const job = r.jobs as { title: string; platform: string; url: string | null } | null
+    const job = r.jobs as unknown as { title: string; platform: string; url: string | null } | null
     if (!r.job_id || !job) continue
-    const entry = grouped.get(r.job_id) ?? { job_id: r.job_id, title: job.title, platform: job.platform, url: job.url, count: 0, reasons: [] }
+    const entry = grouped.get(r.job_id) ?? { job_id: r.job_id, title: job.title, platform: job.platform, url: job.url, count: 0, reasons: [] as string[] }
     entry.count += 1
-    if (r.reason) entry.reasons.push(r.reason)
+    if (r.reason) entry.reasons.push(r.reason as string)
     grouped.set(r.job_id, entry)
   }
 

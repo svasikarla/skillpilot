@@ -59,7 +59,7 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
     })
 
     const { jobs, error } = await runAdapter(name, fetcher)
-    const newJobs = jobs.filter(j => !existingUrls.has(j.url))
+    const newJobs = jobs.filter(j => j.url == null || !existingUrls.has(j.url))
     const duped = jobs.length - newJobs.length
 
     if (newJobs.length > 0) {
@@ -91,7 +91,7 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
       if (insertErr) console.error(`[ingest] insert error for ${name}:`, insertErr.message)
 
       // update known urls cache
-      newJobs.forEach(j => existingUrls.add(j.url))
+      newJobs.forEach(j => { if (j.url != null) existingUrls.add(j.url) })
     }
 
     await supabase.from('ingestion_runs').update({
