@@ -22,8 +22,8 @@ export default async function AdminReportsPage() {
   for (const r of scamReports ?? []) {
     const job = r.jobs as unknown as { title: string; platform: string; url: string | null } | null
     if (!r.job_id || !job) continue
-    const e = grouped.get(r.job_id) ?? { job_id: r.job_id, title: job.title, platform: job.platform, url: job.url, count: 0, reasons: [] }
-    e.count += 1; if (r.reason) e.reasons.push(r.reason)
+    const e = grouped.get(r.job_id) ?? { job_id: r.job_id, title: job.title, platform: job.platform, url: job.url, count: 0, reasons: [] as string[] }
+    e.count += 1; if (r.reason) e.reasons.push(r.reason as string)
     grouped.set(r.job_id, e)
   }
 
