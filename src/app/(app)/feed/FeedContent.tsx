@@ -168,11 +168,11 @@ export default function FeedContent({ userSkills }: { userSkills: string[] }) {
             onClick={() => setShowHidden(v => !v)}>
             <Eye className="h-3.5 w-3.5" />Show hidden
           </Button>
-          <Select value={matchFilter} onValueChange={setMatchFilter}>
+          <Select value={matchFilter} onValueChange={v => setMatchFilter(v ?? '')}>
             <SelectTrigger className="h-7 text-xs w-40"><SelectValue placeholder="Match score…" /></SelectTrigger>
             <SelectContent>{MATCH_OPTIONS.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}</SelectContent>
           </Select>
-          <Select value={daysFilter} onValueChange={setDaysFilter}>
+          <Select value={daysFilter} onValueChange={v => setDaysFilter(v ?? '')}>
             <SelectTrigger className="h-7 text-xs w-32"><SelectValue placeholder="Posted…" /></SelectTrigger>
             <SelectContent>{DAYS_OPTIONS.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}</SelectContent>
           </Select>
@@ -215,14 +215,14 @@ export default function FeedContent({ userSkills }: { userSkills: string[] }) {
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">Match score</label>
-                <Select value={matchFilter} onValueChange={setMatchFilter}>
+                <Select value={matchFilter} onValueChange={v => setMatchFilter(v ?? '')}>
                   <SelectTrigger className="text-sm"><SelectValue placeholder="Any match" /></SelectTrigger>
                   <SelectContent>{MATCH_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">Posted within</label>
-                <Select value={daysFilter} onValueChange={setDaysFilter}>
+                <Select value={daysFilter} onValueChange={v => setDaysFilter(v ?? '')}>
                   <SelectTrigger className="text-sm"><SelectValue placeholder="Any time" /></SelectTrigger>
                   <SelectContent>{DAYS_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
