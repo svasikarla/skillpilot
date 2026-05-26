@@ -2,7 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import { fetchRemotive } from './remotive'
 import { fetchRemoteOK } from './remoteok'
 import { fetchHimalayas } from './himalayas'
+import { fetchFindwork } from './findwork'
+import { fetchHNWhoIsHiring } from './hnwih'
+import { fetchWeWorkRemotely } from './weworkremotely'
+import { fetchWorkingNomads } from './workingnomads'
 import { scoreReliability } from '@/lib/reliability'
+import { generateEmbedding, jobEmbeddingText } from '@/lib/embeddings'
 import type { RawJob } from './types'
 
 export interface IngestResult {
@@ -36,9 +41,13 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
   const existingUrls = await getExistingUrls(supabase)
 
   const adapters: Array<{ name: string; fetcher: () => Promise<RawJob[]> }> = [
-    { name: 'remotive',  fetcher: fetchRemotive },
-    { name: 'remoteok',  fetcher: fetchRemoteOK },
-    { name: 'himalayas', fetcher: fetchHimalayas },
+    { name: 'remotive',       fetcher: fetchRemotive },
+    { name: 'remoteok',       fetcher: fetchRemoteOK },
+    { name: 'himalayas',      fetcher: fetchHimalayas },
+    { name: 'findwork',       fetcher: fetchFindwork },
+    { name: 'hnwih',          fetcher: fetchHNWhoIsHiring },
+    { name: 'weworkremotely', fetcher: fetchWeWorkRemotely },
+    { name: 'workingnomads',  fetcher: fetchWorkingNomads },
   ]
 
   const results: IngestResult[] = []
@@ -54,8 +63,11 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
     const duped = jobs.length - newJobs.length
 
     if (newJobs.length > 0) {
-      const rows = newJobs.map(j => {
+      const rows = await Promise.all(newJobs.map(async j => {
         const { score, flags } = scoreReliability(j)
+        const embedding = await generateEmbedding(
+          jobEmbeddingText({ title: j.title, skills: j.skills ?? [], description: j.description ?? '' })
+        ).catch(() => null)
         return {
           title:             j.title,
           company:           j.company,
@@ -71,8 +83,9 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
           reliability_flags: flags,
           source:            j.source,
           status:            score >= 60 ? 'approved' : 'pending',
+          ...(embedding ? { embedding: JSON.stringify(embedding) } : {}),
         }
-      })
+      }))
 
       const { error: insertErr } = await supabase.from('jobs').insert(rows)
       if (insertErr) console.error(`[ingest] insert error for ${name}:`, insertErr.message)

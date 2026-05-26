@@ -3,6 +3,7 @@ export interface MatchResult {
   skillScore: number     // 0-100
   rateScore: number      // 0-100
   recencyScore: number   // 0-100
+  semanticScore: number  // 0-100; 0 when no embedding available
   matchedSkills: string[]
   missingSkills: string[]
   isCapped: boolean      // true if skill coverage < 40% caused cap at 55
@@ -10,8 +11,8 @@ export interface MatchResult {
 
 /**
  * Compute a multi-component match score between a user profile and a job.
- * Weights: skill 60%, rate 20%, recency 20%.
- * No embedding/semantic scoring (requires OpenAI key — Phase 5 addition).
+ * Without semanticScore: skill 60%, rate 20%, recency 20%.
+ * With semanticScore:    skill 50%, rate 15%, recency 15%, semantic 20%.
  */
 export function computeMatch(params: {
   userSkills: string[]
@@ -21,6 +22,7 @@ export function computeMatch(params: {
   jobRateMin: number | null
   jobRateMax: number | null
   jobPostedAt: string
+  semanticScore?: number  // 0-100 cosine similarity scaled score (optional)
 }): MatchResult {
   const { userSkills, skillRatings, hourlyRate, jobSkills, jobRateMin, jobRateMax, jobPostedAt } = params
 
@@ -77,8 +79,12 @@ export function computeMatch(params: {
   const recencyScore = Math.round(Math.max(0, 100 - daysOld * (100 / 30)))
 
   // ── Weighted Final ───────────────────────────────────────────────────────────
-  const raw = skillScore * 0.60 + rateScore * 0.20 + recencyScore * 0.20
+  const hasSemantic = typeof params.semanticScore === 'number'
+  const semanticScore = hasSemantic ? Math.round(params.semanticScore!) : 0
+  const raw = hasSemantic
+    ? skillScore * 0.50 + rateScore * 0.15 + recencyScore * 0.15 + semanticScore * 0.20
+    : skillScore * 0.60 + rateScore * 0.20 + recencyScore * 0.20
   const score = isCapped ? Math.min(55, Math.round(raw)) : Math.round(raw)
 
-  return { score, skillScore, rateScore, recencyScore, matchedSkills, missingSkills, isCapped }
+  return { score, skillScore, rateScore, recencyScore, semanticScore, matchedSkills, missingSkills, isCapped }
 }

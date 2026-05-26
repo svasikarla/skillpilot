@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AppNav from '@/components/AppNav'
-import { Shield, Star, ExternalLink } from 'lucide-react'
+import { Shield, Star, ExternalLink, CheckCircle2, Bookmark, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const TIER_CONFIG: Record<number, { label: string; color: string; bg: string }> = {
@@ -28,14 +28,20 @@ export default async function PlatformsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: profile }, { data: platforms }, { data: reviewCounts }] = await Promise.all([
+  const [{ data: profile }, { data: platforms }, { data: reviewCounts }, { data: interests }] = await Promise.all([
     supabase.from('profiles').select('name').eq('user_id', user.id).single(),
-    supabase.from('platforms').select('id, slug, name, tier, trust_score, description, website').order('tier').order('trust_score', { ascending: false }),
+    supabase.from('platforms').select('id, slug, name, tier, trust_score, description, website, rate_min_aiml, rate_max_aiml').order('tier').order('trust_score', { ascending: false }),
     supabase.from('platform_reviews').select('platform_id'),
+    supabase.from('member_platform_interests').select('platform_id, interest').eq('user_id', user.id),
   ])
 
   const countByPlatform = (reviewCounts ?? []).reduce<Record<string, number>>((acc, r) => {
     acc[r.platform_id] = (acc[r.platform_id] ?? 0) + 1
+    return acc
+  }, {})
+
+  const interestByPlatform = (interests ?? []).reduce<Record<string, string>>((acc, i) => {
+    acc[i.platform_id] = i.interest
     return acc
   }, {})
 
@@ -67,8 +73,8 @@ export default async function PlatformsPage() {
                   <a key={p.id} href={`/platforms/${p.slug}`}
                     className="card-interactive rounded-lg p-4 block group">
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-sm group-hover:text-primary transition-colors">{p.name}</span>
                           {(countByPlatform[p.id] ?? 0) > 0 && (
                             <span className="flex items-center gap-0.5 text-xs text-amber-600">
@@ -76,10 +82,25 @@ export default async function PlatformsPage() {
                               {countByPlatform[p.id]}
                             </span>
                           )}
+                          {interestByPlatform[p.id] === 'have' && (
+                            <span className="flex items-center gap-0.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-1.5 py-0.5">
+                              <CheckCircle2 className="h-2.5 w-2.5" />Have account
+                            </span>
+                          )}
+                          {interestByPlatform[p.id] === 'want' && (
+                            <span className="flex items-center gap-0.5 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-1.5 py-0.5">
+                              <Bookmark className="h-2.5 w-2.5" />Want to try
+                            </span>
+                          )}
                         </div>
                         <div className="mt-1">
                           <TrustBar score={p.trust_score} />
                         </div>
+                        {(p.rate_min_aiml || p.rate_max_aiml) && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            ${p.rate_min_aiml}–${p.rate_max_aiml}/hr for AI/ML
+                          </p>
+                        )}
                       </div>
                       <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-primary/60 transition-colors shrink-0 mt-0.5" />
                     </div>

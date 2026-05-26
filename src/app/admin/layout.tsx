@@ -12,12 +12,30 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b px-6 py-3 flex items-center gap-4">
-        <span className="font-semibold text-sm">Admin</span>
-        <nav className="flex gap-4 text-sm text-muted-foreground">
-          <a href="/admin/jobs" className="hover:text-foreground">Job Queue</a>
-          <a href="/feed" className="hover:text-foreground">← Back to Feed</a>
+      <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-md px-6 h-14 flex items-center gap-6">
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
+            <span className="text-primary-foreground text-xs font-bold">AI</span>
+          </div>
+          <span className="font-semibold text-sm tracking-tight">Freelance Hub</span>
+          <span className="text-xs font-medium text-amber-700 bg-amber-100 border border-amber-200 rounded px-1.5 py-0.5">Admin</span>
+        </div>
+        <nav className="flex items-center gap-1 flex-1">
+          {[
+            { href: '/admin/jobs',      label: 'Job Queue' },
+            { href: '/admin/members',   label: 'Members' },
+            { href: '/admin/reports',   label: 'Reports' },
+            { href: '/admin/platforms', label: 'Platforms' },
+          ].map(({ href, label }) => (
+            <a key={href} href={href}
+              className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+              {label}
+            </a>
+          ))}
         </nav>
+        <a href="/feed" className="text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0">
+          ← Back to feed
+        </a>
       </header>
       <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
     </div>

@@ -113,8 +113,23 @@ export default function TrackerClient({ applications: initial, userName }: { app
             <a href="/feed" className="text-sm text-primary underline mt-3 inline-block">Browse gigs →</a>
           </div>
         ) : (
-          <div className="space-y-3">
-            {apps.map(app => (
+          <div className="space-y-8">
+            {/* Group by status pipeline */}
+            {[
+              { key: 'active',    label: 'Active pipeline',  statuses: ['in_progress','submitted','interviewing','negotiating'] },
+              { key: 'saved',     label: 'Saved',            statuses: ['saved'] },
+              { key: 'closed',    label: 'Closed',           statuses: ['won','lost','no_response','withdrawn'] },
+            ].map(group => {
+              const groupApps = apps.filter(a => group.statuses.includes(a.status ?? 'saved'))
+              if (!groupApps.length) return null
+              return (
+                <div key={group.key} className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</span>
+                    <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">{groupApps.length}</span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                  {groupApps.map(app => (
               <div key={app.id} className="card-elevated rounded-lg p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
@@ -182,6 +197,9 @@ export default function TrackerClient({ applications: initial, userName }: { app
                 )}
               </div>
             ))}
+                </div>
+              )
+            })}
           </div>
         )}
       </main>

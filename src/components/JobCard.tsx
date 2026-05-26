@@ -3,16 +3,17 @@
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   ExternalLink, MapPin, DollarSign, Calendar, ShieldCheck, ShieldAlert,
-  ShieldX, Bookmark, BookmarkCheck, Wand2, X, ChevronDown, ChevronUp, Loader2,
+  ShieldX, Bookmark, BookmarkCheck, Wand2, ChevronDown, ChevronUp, FileText, Flag,
 } from 'lucide-react'
+import ProposalPanelInline from '@/components/apply/ProposalPanel'
 import { cn } from '@/lib/utils'
 import { tierFromScore, tierLabel } from '@/lib/reliability'
 import { toast } from 'sonner'
+import { useSuccessState } from '@/lib/use-success-state'
+import { Check } from 'lucide-react'
 
 type Job = {
   id: string; title: string; company: string | null; description: string | null
@@ -60,89 +61,19 @@ function ReliabilityBadge({ score }: { score: number }) {
   )
 }
 
-function ProposalPanel({ job, onClose }: { job: Job; onClose: () => void }) {
-  const [memberValue, setMemberValue] = useState('')
-  const [pastResult, setPastResult]   = useState('')
-  const [question, setQuestion]       = useState('')
-  const [loading, setLoading]         = useState(false)
-  const [variants, setVariants]       = useState<{ concise: string; standard: string; detailed: string } | null>(null)
-  const [active, setActive]           = useState<'concise' | 'standard' | 'detailed'>('standard')
-
-  async function generate() {
-    if (!memberValue || !pastResult || !question) { toast.error('Fill in all three fields'); return }
-    setLoading(true)
-    const res = await fetch('/api/proposals/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ job_id: job.id, member_value: memberValue, past_result: pastResult, question_for_client: question }),
-    })
-    const data = await res.json()
-    if (!res.ok) { toast.error(data.error ?? 'Failed'); setLoading(false); return }
-    setVariants(data.variants)
-    setLoading(false)
-  }
-
-  return (
-    <div className="mt-4 pt-4 border-t border-border/60 space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-foreground uppercase tracking-wider">
-          Generate proposal · {job.platform}
-        </p>
-        <button onClick={onClose} className="p-1 rounded hover:bg-muted text-muted-foreground">
-          <X className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
-      {!variants ? (
-        <div className="space-y-3">
-          {[
-            { id: 'value', label: 'What specific value do you bring?', val: memberValue, set: setMemberValue, ph: 'e.g. Built 3 production RAG systems for fintech clients…' },
-            { id: 'result', label: 'One measurable past result', val: pastResult, set: setPastResult, ph: 'e.g. Reduced inference latency by 40% using vLLM…' },
-            { id: 'question', label: 'One smart question for the client', val: question, set: setQuestion, ph: 'e.g. Is the data already chunked, or will I own the pipeline?' },
-          ].map(({ id, label, val, set, ph }) => (
-            <div key={id} className="space-y-1">
-              <Label htmlFor={id} className="text-xs text-muted-foreground">{label}</Label>
-              <Input id={id} className="text-xs h-8 bg-muted/30" placeholder={ph} value={val} onChange={e => set(e.target.value)} />
-            </div>
-          ))}
-          <Button size="sm" onClick={generate} disabled={loading} className="w-full gap-2">
-            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
-            {loading ? 'Generating…' : 'Generate 3 variants'}
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="flex items-center gap-1">
-            {(['concise', 'standard', 'detailed'] as const).map(v => (
-              <button key={v} onClick={() => setActive(v)}
-                className={cn('text-xs px-2.5 py-1 rounded-md font-medium transition-colors capitalize border',
-                  active === v ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted text-muted-foreground')}>
-                {v}
-              </button>
-            ))}
-            <button onClick={() => setVariants(null)} className="text-xs text-muted-foreground ml-auto hover:text-foreground underline">Redo</button>
-          </div>
-          <Textarea
-            className="text-xs min-h-[140px] bg-muted/20 resize-none"
-            value={variants[active]}
-            onChange={e => setVariants({ ...variants, [active]: e.target.value })}
-          />
-          <Button size="sm" variant="outline" className="w-full gap-1.5" onClick={() => { navigator.clipboard.writeText(variants[active]); toast.success('Copied to clipboard') }}>
-            Copy to clipboard
-          </Button>
-        </div>
-      )}
-    </div>
-  )
-}
 
 export default function JobCard({
-  job, userSkills, isSaved = false, onSave,
+  job, userSkills, isSaved = false, onSave, onViewDetails, proposalOpen, onProposalToggle,
 }: {
   job: Job; userSkills: string[]; isSaved?: boolean; onSave?: () => void
+  onViewDetails?: () => void
+  proposalOpen?: boolean
+  onProposalToggle?: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
-  const [showProposal, setShowProposal] = useState(false)
+  const showProposal = proposalOpen ?? false
+  const setShowProposal = onProposalToggle ?? (() => {})
+  const [saved, triggerSaved] = useSuccessState()
   const score = job.match_score ?? 0
   const hasReliability = job.reliability_score !== undefined
 
@@ -150,6 +81,7 @@ export default function JobCard({
   const accentClass = score >= 70 ? 'border-l-emerald-500' : score >= 45 ? 'border-l-amber-400' : 'border-l-border'
 
   return (
+    <>
     <div className={cn('card-elevated border-l-4 rounded-lg overflow-hidden', accentClass)}>
       <div className="p-4">
         <div className="flex items-start gap-3">
@@ -214,12 +146,22 @@ export default function JobCard({
             {/* Actions */}
             <div className="flex items-center gap-2 pt-0.5">
               {onSave && (
-                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 hover:border-primary/40" onClick={onSave} disabled={isSaved}>
-                  {isSaved ? <><BookmarkCheck className="h-3.5 w-3.5 text-primary" />Saved</> : <><Bookmark className="h-3.5 w-3.5" />Save</>}
+                <Button size="sm" variant="outline"
+                  className={cn('h-7 text-xs gap-1.5 transition-colors',
+                    saved ? 'border-emerald-400 text-emerald-700 bg-emerald-50' : 'hover:border-primary/40')}
+                  onClick={() => { onSave(); triggerSaved() }} disabled={isSaved}>
+                  {saved    ? <><Check className="h-3.5 w-3.5" />Saved!</> :
+                   isSaved  ? <><BookmarkCheck className="h-3.5 w-3.5 text-primary" />Saved</> :
+                              <><Bookmark className="h-3.5 w-3.5" />Save</>}
+                </Button>
+              )}
+              {onViewDetails && (
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 hover:border-primary/40" onClick={onViewDetails}>
+                  <FileText className="h-3.5 w-3.5" />Details
                 </Button>
               )}
               <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 hover:border-primary/40"
-                onClick={() => { setShowProposal(v => !v); setExpanded(true) }}>
+                onClick={() => { setShowProposal(); setExpanded(true) }}>
                 <Wand2 className="h-3.5 w-3.5" />Proposal
               </Button>
               {job.description && job.description.length > 200 && (
@@ -231,18 +173,42 @@ export default function JobCard({
             </div>
           </div>
 
-          {/* External link */}
-          {job.url && (
-            <a href={job.url} target="_blank" rel="noopener noreferrer"
-              className="shrink-0 p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground mt-0.5"
-              title="Open listing">
-              <ExternalLink className="h-4 w-4" />
-            </a>
-          )}
+          {/* Right actions */}
+          <div className="flex flex-col items-center gap-1 shrink-0">
+            {job.url && (
+              <a href={job.url} target="_blank" rel="noopener noreferrer"
+                className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                title="Open listing">
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            )}
+            <button
+              title="Report as scam"
+              className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+              onClick={async () => {
+                await fetch(`/api/jobs/${job.id}/report`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: '' }) })
+                toast.info('Report submitted. Thank you.')
+              }}>
+              <Flag className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
-        {showProposal && <ProposalPanel job={job} onClose={() => setShowProposal(false)} />}
       </div>
     </div>
+
+    {/* Proposal Dialog */}
+    <Dialog open={showProposal} onOpenChange={open => { if (!open) setShowProposal() }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-semibold">
+            Draft proposal · {job.platform}
+          </DialogTitle>
+          <p className="text-xs text-muted-foreground truncate">{job.title}</p>
+        </DialogHeader>
+        <ProposalPanelInline jobId={job.id} platform={job.platform} />
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

@@ -8,6 +8,7 @@ import {
   Users, ArrowRight, CheckCircle, Star, ChevronRight, Sparkles,
   TrendingUp, Clock, Globe, Lock, BookOpen,
 } from 'lucide-react'
+import FeatureDemoSection from '@/components/landing/FeatureDemoSection'
 
 export const metadata = {
   title: 'AI/ML Freelance Hub — Private Command Centre for AI/ML Practitioners',
@@ -91,8 +92,8 @@ function HeroSection() {
               Sign in to your workspace <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
-          <a href="#features" className="h-12 px-8 text-sm font-medium text-muted-foreground hover:text-foreground border border-border rounded-md flex items-center gap-2 hover:border-foreground/20 hover:bg-muted/40 transition-all">
-            Explore features <ChevronRight className="h-4 w-4" />
+          <a href="#demo" className="h-12 px-8 text-sm font-medium text-muted-foreground hover:text-foreground border border-border rounded-md flex items-center gap-2 hover:border-foreground/20 hover:bg-muted/40 transition-all">
+            Watch demo <ChevronRight className="h-4 w-4" />
           </a>
         </div>
 
@@ -675,6 +676,7 @@ export default async function LandingPage() {
       <StatsBar />
       <FeaturesSection />
       <HowItWorksSection />
+      <FeatureDemoSection />
       <ProposalSpotlightSection />
       <MatchSpotlightSection />
       <PlatformSection />

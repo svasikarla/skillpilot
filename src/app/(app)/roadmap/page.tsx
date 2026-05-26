@@ -11,13 +11,15 @@ export default async function RoadmapPage() {
   if (!user) redirect('/login')
 
   const [{ data: profile }, { data: jobs }] = await Promise.all([
-    supabase.from('profiles').select('name, skills, skill_ratings, hourly_rate').eq('user_id', user.id).single(),
+    supabase.from('profiles').select('name, skills, skill_ratings, hourly_rate, learned_skills, learning_skills').eq('user_id', user.id).single(),
     supabase.from('jobs').select('skills, rate_min, rate_max').eq('status', 'approved').limit(500),
   ])
 
   if (!profile) redirect('/onboarding')
 
-  const gaps = computeRoadmap(profile.skills ?? [], jobs ?? [])
+  const learnedSkills  = (profile.learned_skills  as string[]) ?? []
+  const learningSkills = (profile.learning_skills as string[]) ?? []
+  const gaps = computeRoadmap(profile.skills ?? [], learnedSkills, jobs ?? [])
   const topEarning = gaps.slice(0, 3).reduce((s, g) => s + g.avgRate, 0)
 
   return (
@@ -58,7 +60,7 @@ export default async function RoadmapPage() {
             <p className="text-sm text-muted-foreground mt-1">Your profile matches well across current gigs. Check back as new jobs appear.</p>
           </div>
         ) : (
-          <RoadmapClient gaps={gaps} />
+          <RoadmapClient gaps={gaps} initialLearning={learningSkills} initialLearned={learnedSkills} />
         )}
       </main>
     </div>

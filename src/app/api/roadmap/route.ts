@@ -7,16 +7,16 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Fetch user profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('skills, hourly_rate')
+    .select('skills, learned_skills, learning_skills, hourly_rate')
     .eq('user_id', user.id)
     .single()
 
-  const userSkills = profile?.skills ?? []
+  const userSkills    = profile?.skills ?? []
+  const learnedSkills = (profile?.learned_skills as string[]) ?? []
+  const learningSkills = (profile?.learning_skills as string[]) ?? []
 
-  // Fetch all approved jobs with skills + rates
   const { data: jobs, error } = await supabase
     .from('jobs')
     .select('skills, rate_min, rate_max')
@@ -25,10 +25,12 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const gaps = computeRoadmap(userSkills, jobs ?? [])
+  const gaps = computeRoadmap(userSkills, learnedSkills, jobs ?? [])
 
   return NextResponse.json({
     gaps,
+    learningSkills,
+    learnedSkills,
     userSkillCount: userSkills.length,
     totalJobs: (jobs ?? []).length,
   })

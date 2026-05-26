@@ -5,8 +5,9 @@ import { useParams } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { ExternalLink, Star, Shield, CheckCircle, AlertTriangle, ChevronLeft } from 'lucide-react'
+import { ExternalLink, Star, Shield, CheckCircle, AlertTriangle, ChevronLeft, Briefcase } from 'lucide-react'
 import { toast } from 'sonner'
+import AppNav from '@/components/AppNav'
 
 type Platform = {
   id: string; slug: string; name: string; tier: number; trust_score: number
@@ -72,6 +73,7 @@ export default function PlatformDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <AppNav />
       <header className="border-b px-6 py-4 flex items-center gap-4">
         <a href="/platforms" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ChevronLeft className="h-4 w-4" />Platforms
@@ -91,13 +93,20 @@ export default function PlatformDetailPage() {
               <span>Tier {platform.tier}</span>
             </div>
           </div>
-          {platform.website && (
-            <a href={platform.website} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" size="sm" className="gap-1.5">
-                Visit <ExternalLink className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-2 flex-wrap">
+            <a href={`/feed?platform=${encodeURIComponent(platform.name)}`}>
+              <Button size="sm" className="gap-1.5">
+                <Briefcase className="h-3.5 w-3.5" /> See open jobs
               </Button>
             </a>
-          )}
+            {platform.website && (
+              <a href={platform.website} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  Visit <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+              </a>
+            )}
+          </div>
         </div>
 
         {/* Tips */}

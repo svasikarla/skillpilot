@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import {
-  Briefcase, LayoutDashboard, Building2, Map, Users, LogOut, ChevronDown,
+  Briefcase, LayoutDashboard, Building2, Map, Users, LogOut, Sparkles, Settings,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -12,7 +12,9 @@ const NAV_ITEMS = [
   { href: '/tracker',   label: 'Tracker',    icon: Briefcase },
   { href: '/platforms', label: 'Platforms',  icon: Building2 },
   { href: '/roadmap',   label: 'Roadmap',    icon: Map },
+  { href: '/audit',     label: 'Audit',      icon: Sparkles },
   { href: '/community', label: 'Community',  icon: Users },
+  { href: '/settings',  label: 'Settings',   icon: Settings },
 ]
 
 export default function AppNav({ userName }: { userName?: string }) {
