@@ -16,7 +16,9 @@ export type ParsedSection = {
 const HEADINGS: Array<{ pat: RegExp; key: SectionKey; label: string }> = [
   // Match heading even when run-on into body (lookahead allows uppercase or punctuation).
   // Longer / more specific patterns first.
-  { pat: /\bAbout\s+(?:Us|the\s+(?:Company|Team|Role)|[A-Z][\w&.'\- ]{0,40}?)(?=[A-Z\s.,;:]|$)/, key: 'about', label: 'Company' },
+  // Note: "the Role" is intentionally excluded here so the dedicated "About the Role"
+  // pattern below classifies it as 'role' rather than this broader 'about' pattern.
+  { pat: /\bAbout\s+(?:Us|the\s+(?:Company|Team)|[A-Z][\w&.'\- ]{0,40}?)(?=[A-Z\s.,;:]|$)/, key: 'about', label: 'Company' },
   { pat: /\b(?:Company|Our)\s+(?:Overview|Description|Profile|Mission|Story|Vision)(?=[A-Z\s.,;:]|$)/, key: 'about', label: 'Company' },
   { pat: /\bWho\s+We\s+Are(?=[A-Z\s.,;:]|$)/, key: 'about', label: 'Company' },
 
@@ -45,7 +47,10 @@ const HEADINGS: Array<{ pat: RegExp; key: SectionKey; label: string }> = [
   { pat: /\bPerks(?=[A-Z\s.,;:]|$)/, key: 'benefits', label: 'Benefits' },
 ]
 
-const ORDER: SectionKey[] = ['about', 'role', 'responsibilities', 'requirements', 'niceToHave', 'benefits', 'other']
+// 'other' leads: the only thing keyed 'other' here is the pre-heading intro ("Overview"),
+// which is the lead paragraph of the posting and should render before the labelled sections.
+// (The heading-less fallback returns before ORDER is applied, so it is unaffected.)
+const ORDER: SectionKey[] = ['other', 'about', 'role', 'responsibilities', 'requirements', 'niceToHave', 'benefits']
 
 function decodeEntities(s: string): string {
   return s
@@ -131,7 +136,12 @@ const BULLETABLE: SectionKey[] = ['responsibilities', 'requirements', 'niceToHav
 
 export function maybeBullets(section: ParsedSection): string[] | null {
   if (!BULLETABLE.includes(section.key)) return null
-  const explicit = section.body.split(/\s*[•·]\s+|\s*\n\s*[-–*]\s+|\s*\n+\s*/).map(s => s.trim()).filter(Boolean)
+  const explicit = section.body
+    .split(/\s*[•·]\s+|\s*\n\s*[-–*]\s+|\s*\n+\s*/)
+    // Strip a leading marker too: the split consumes markers *between* items but not
+    // one at the very start of the body, so the first item would otherwise keep its "- ".
+    .map(s => s.trim().replace(/^[•·*\-–]\s*/, ''))
+    .filter(Boolean)
   if (explicit.length >= 3 && explicit.every(s => s.length < 280)) return explicit
 
   const sents = section.body
