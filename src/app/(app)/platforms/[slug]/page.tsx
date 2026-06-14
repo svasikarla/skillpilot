@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ExternalLink, Star, Shield, CheckCircle, AlertTriangle, ChevronLeft, Briefcase } from 'lucide-react'
 import { toast } from 'sonner'
-import AppNav from '@/components/AppNav'
+import Link from 'next/link'
+import { PageContainer, RailCard } from '@/components/app-shell/PageContainer'
 
 type Platform = {
   id: string; slug: string; name: string; tier: number; trust_score: number
@@ -71,18 +71,68 @@ export default function PlatformDetailPage() {
   if (loading) return <div className="p-8 text-muted-foreground text-sm">Loading…</div>
   if (!platform) return <div className="p-8 text-destructive text-sm">Platform not found.</div>
 
+  const avgRating = reviews.length
+    ? Math.round((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) * 10) / 10
+    : null
+
+  const aside = (
+    <>
+      <RailCard title="At a glance" icon={Shield}>
+        <dl className="space-y-2.5">
+          <div className="flex items-baseline justify-between">
+            <dt className="text-sm text-muted-foreground">Trust score</dt>
+            <dd className="text-lg font-bold tabular-nums">
+              {platform.trust_score}<span className="text-sm font-normal text-muted-foreground">/100</span>
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between">
+            <dt className="text-sm text-muted-foreground">Tier</dt>
+            <dd className="text-lg font-bold tabular-nums">{platform.tier}</dd>
+          </div>
+          <div className="flex items-baseline justify-between">
+            <dt className="text-sm text-muted-foreground">Member rating</dt>
+            <dd className="text-lg font-bold tabular-nums">{avgRating === null ? '—' : `${avgRating}★`}</dd>
+          </div>
+          <div className="flex items-baseline justify-between">
+            <dt className="text-sm text-muted-foreground">Reviews</dt>
+            <dd className="text-lg font-bold tabular-nums">{reviews.length}</dd>
+          </div>
+        </dl>
+      </RailCard>
+      <RailCard title="Take action">
+        <div className="space-y-2">
+          <Link
+            href={`/feed?platform=${encodeURIComponent(platform.name)}`}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <Briefcase className="h-3.5 w-3.5" /> See open jobs
+          </Link>
+          {platform.website && (
+            <a
+              href={platform.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              Visit site <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          )}
+        </div>
+      </RailCard>
+    </>
+  )
+
   return (
-    <div className="min-h-screen bg-background">
-      <AppNav />
+    <div className="bg-background">
       <header className="border-b px-6 py-4 flex items-center gap-4">
-        <a href="/platforms" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/platforms" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ChevronLeft className="h-4 w-4" />Platforms
-        </a>
+        </Link>
         <span className="text-muted-foreground">/</span>
         <span className="font-semibold text-sm">{platform.name}</span>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8 space-y-8">
+      <PageContainer aside={aside} className="space-y-8">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -94,11 +144,11 @@ export default function PlatformDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <a href={`/feed?platform=${encodeURIComponent(platform.name)}`}>
+            <Link href={`/feed?platform=${encodeURIComponent(platform.name)}`}>
               <Button size="sm" className="gap-1.5">
                 <Briefcase className="h-3.5 w-3.5" /> See open jobs
               </Button>
-            </a>
+            </Link>
             {platform.website && (
               <a href={platform.website} target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm" className="gap-1.5">
@@ -185,7 +235,7 @@ export default function PlatformDetailPage() {
             </div>
           )}
         </div>
-      </main>
+      </PageContainer>
     </div>
   )
 }

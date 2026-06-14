@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { fetchRemotive } from './remotive'
 import { fetchRemoteOK } from './remoteok'
 import { fetchHimalayas } from './himalayas'
@@ -19,7 +19,18 @@ export interface IngestResult {
   error?: string
 }
 
-async function getExistingUrls(supabase: Awaited<ReturnType<typeof createClient>>): Promise<Set<string>> {
+// Ingest is a trusted server-side cron, so it uses the service-role client. The
+// anon/SSR client can INSERT jobs (permissive RLS policy) but has no UPDATE
+// policy, so last_seen bumps and stale-archiving would silently no-op under RLS.
+function ingestClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
+  )
+}
+
+async function getExistingUrls(supabase: SupabaseClient): Promise<Set<string>> {
   const { data } = await supabase.from('jobs').select('url')
   return new Set((data ?? []).map(j => j.url).filter(Boolean))
 }
@@ -38,7 +49,7 @@ async function runAdapter(
 }
 
 export async function ingestAllSources(): Promise<IngestResult[]> {
-  const supabase = await createClient()
+  const supabase = ingestClient()
   const existingUrls = await getExistingUrls(supabase)
 
   const adapters: Array<{ name: string; fetcher: () => Promise<RawJob[]> }> = [

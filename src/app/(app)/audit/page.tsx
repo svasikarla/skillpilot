@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import AppNav from '@/components/AppNav'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +8,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { AlertTriangle, Info, Sparkles, Loader2, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { Progress } from '@/components/ui/progress'
+import { PageContainer, RailCard } from '@/components/app-shell/PageContainer'
 
 const PLATFORMS = [
   { slug: 'upwork',     name: 'Upwork' },
@@ -103,14 +104,44 @@ export default function AuditPage() {
 
   const totalItems = audit ? (audit.critical?.length ?? 0) + (audit.important?.length ?? 0) + (audit.nice_to_have?.length ?? 0) : 0
   const doneCount  = done.size
+  const pct = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0
+
+  const aside = !audit ? undefined : (
+    <RailCard title="Fix progress" icon={TrendingUp}>
+      <div className="mb-1 flex items-baseline justify-between">
+        <span className="text-2xl font-bold tracking-tight">{pct}%</span>
+        <span className="text-xs text-muted-foreground">{doneCount}/{totalItems} done</span>
+      </div>
+      <Progress value={pct} aria-label="Audit fix progress" className="mb-3" />
+      <dl className="space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <dt className="flex items-center gap-2 text-muted-foreground">
+            <AlertTriangle className="h-3.5 w-3.5 text-red-600" />Critical
+          </dt>
+          <dd className="font-semibold tabular-nums">{audit.critical?.length ?? 0}</dd>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <dt className="flex items-center gap-2 text-muted-foreground">
+            <Info className="h-3.5 w-3.5 text-amber-600" />Important
+          </dt>
+          <dd className="font-semibold tabular-nums">{audit.important?.length ?? 0}</dd>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <dt className="flex items-center gap-2 text-muted-foreground">
+            <Sparkles className="h-3.5 w-3.5 text-blue-600" />Nice to have
+          </dt>
+          <dd className="font-semibold tabular-nums">{audit.nice_to_have?.length ?? 0}</dd>
+        </div>
+      </dl>
+    </RailCard>
+  )
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppNav />
-      <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">
+    <div className="bg-background">
+      <PageContainer aside={aside} maxWidth="max-w-5xl" className="space-y-8">
         <div>
           <h1 className="page-header">Profile Audit</h1>
-          <p className="page-subheader">AI-powered profile review tailored to each platform's specific norms.</p>
+          <p className="page-subheader">AI-powered profile review tailored to each platform&apos;s specific norms.</p>
         </div>
 
         <div className="flex gap-3">
@@ -198,7 +229,7 @@ export default function AuditPage() {
             </div>
           </div>
         )}
-      </main>
+      </PageContainer>
     </div>
   )
 }

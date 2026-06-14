@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import AppNav from '@/components/AppNav'
-import { Shield, Star, ExternalLink, CheckCircle2, Bookmark, XCircle } from 'lucide-react'
+import { Shield, Star, ExternalLink, CheckCircle2, Bookmark } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PageContainer, RailCard } from '@/components/app-shell/PageContainer'
 
 const TIER_CONFIG: Record<number, { label: string; color: string; bg: string }> = {
   1: { label: 'Elite',    color: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800' },
@@ -28,8 +28,7 @@ export default async function PlatformsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: profile }, { data: platforms }, { data: reviewCounts }, { data: interests }] = await Promise.all([
-    supabase.from('profiles').select('name').eq('user_id', user.id).single(),
+  const [{ data: platforms }, { data: reviewCounts }, { data: interests }] = await Promise.all([
     supabase.from('platforms').select('id, slug, name, tier, trust_score, description, website, rate_min_aiml, rate_max_aiml').order('tier').order('trust_score', { ascending: false }),
     supabase.from('platform_reviews').select('platform_id'),
     supabase.from('member_platform_interests').select('platform_id, interest').eq('user_id', user.id),
@@ -45,11 +44,47 @@ export default async function PlatformsPage() {
     return acc
   }, {})
 
-  return (
-    <div className="min-h-screen bg-background">
-      <AppNav userName={profile?.name} />
+  const interestValues = Object.values(interestByPlatform)
+  const haveCount = interestValues.filter(v => v === 'have').length
+  const wantCount = interestValues.filter(v => v === 'want').length
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+  const aside = (
+    <>
+      <RailCard title="Your platforms" icon={CheckCircle2}>
+        <dl className="space-y-2.5">
+          <div className="flex items-baseline justify-between">
+            <dt className="text-sm text-muted-foreground">Have an account</dt>
+            <dd className="text-lg font-bold tabular-nums">{haveCount}</dd>
+          </div>
+          <div className="flex items-baseline justify-between">
+            <dt className="text-sm text-muted-foreground">Want to try</dt>
+            <dd className="text-lg font-bold tabular-nums">{wantCount}</dd>
+          </div>
+          <div className="flex items-baseline justify-between">
+            <dt className="text-sm text-muted-foreground">Listed</dt>
+            <dd className="text-lg font-bold tabular-nums">{platforms?.length ?? 0}</dd>
+          </div>
+        </dl>
+        <p className="mt-2 text-xs text-muted-foreground">Open a platform to mark whether you have an account.</p>
+      </RailCard>
+      <RailCard title="Tier guide" icon={Shield}>
+        <ul className="space-y-2">
+          {[1, 2, 3, 4].map(t => (
+            <li key={t} className="flex items-center gap-2 text-sm">
+              <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full border', TIER_CONFIG[t].bg, TIER_CONFIG[t].color)}>
+                Tier {t}
+              </span>
+              <span className="text-muted-foreground">{TIER_CONFIG[t].label}</span>
+            </li>
+          ))}
+        </ul>
+      </RailCard>
+    </>
+  )
+
+  return (
+    <div className="bg-background">
+      <PageContainer aside={aside} className="space-y-8">
         <div>
           <h1 className="page-header">Freelance Platforms</h1>
           <p className="page-subheader">Ranked by tier and trust score. Click any platform for AI/ML-specific guides and member reviews.</p>
@@ -113,7 +148,7 @@ export default async function PlatformsPage() {
             </section>
           )
         })}
-      </main>
+      </PageContainer>
     </div>
   )
 }

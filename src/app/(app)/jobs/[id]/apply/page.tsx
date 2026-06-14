@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
-import AppNav from '@/components/AppNav'
 import ApplicationStepper from '@/components/apply/ApplicationStepper'
 import { getWorkflow } from '@/lib/application-workflow'
 import { ChevronLeft } from 'lucide-react'
@@ -14,10 +13,11 @@ export default async function ApplyPage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: job }, { data: profile }] = await Promise.all([
-    supabase.from('jobs').select('id, title, company, platform, url, skills, description').eq('id', id).single(),
-    supabase.from('profiles').select('name, skills').eq('user_id', user.id).single(),
-  ])
+  const { data: job } = await supabase
+    .from('jobs')
+    .select('id, title, company, platform, url, skills, description')
+    .eq('id', id)
+    .single()
 
   if (!job) notFound()
 
@@ -45,8 +45,6 @@ export default async function ApplyPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppNav userName={profile?.name} />
-
       <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
         <div>
           <a href="/feed" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">

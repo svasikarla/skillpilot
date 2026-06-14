@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import AppNav from '@/components/AppNav'
+import Link from 'next/link'
 import { Trophy, Users, Target, TrendingUp, Medal } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PageContainer, RailCard } from '@/components/app-shell/PageContainer'
 
 type PlatformStat = { platform: string; applied: number; won: number; win_rate: number }
 type RecentWin = { platform: string; rate: number | null }
@@ -20,18 +21,37 @@ export default async function CommunityPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: profile }, stats] = await Promise.all([
-    supabase.from('profiles').select('name').eq('user_id', user.id).single(),
-    fetchStats(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3001'),
-  ])
+  const stats = await fetchStats(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3001')
 
   const hasData = stats && stats.total_applied > 0
 
-  return (
-    <div className="min-h-screen bg-background">
-      <AppNav userName={profile?.name} />
+  const aside = (
+    <>
+      <RailCard title="Contribute" icon={Trophy}>
+        <p className="mb-3 text-sm text-muted-foreground">
+          These numbers are built from members&apos; tracked applications — fully anonymised.
+          Log yours to sharpen the group&apos;s intelligence.
+        </p>
+        <Link
+          href="/tracker"
+          className="inline-flex w-full items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Open your tracker
+        </Link>
+      </RailCard>
+      <RailCard title="How it works">
+        <ul className="space-y-2 text-sm text-muted-foreground">
+          <li>Outcomes are aggregated across the whole group.</li>
+          <li>Only anonymised counts and rates are shown.</li>
+          <li>Refreshed over a rolling 30-day window.</li>
+        </ul>
+      </RailCard>
+    </>
+  )
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+  return (
+    <div className="bg-background">
+      <PageContainer aside={aside} className="space-y-8">
         <div>
           <h1 className="page-header">Group Intelligence</h1>
           <p className="page-subheader">Anonymised outcomes from the group — last 30 days. Log applications in your tracker to contribute.</p>
@@ -129,7 +149,7 @@ export default async function CommunityPage() {
             )}
           </>
         )}
-      </main>
+      </PageContainer>
     </div>
   )
 }
