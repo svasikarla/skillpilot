@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // adapters and assert the queries ingest builds — the logic that pure unit tests
 // can't reach.
 
-vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
+vi.mock('@supabase/supabase-js', () => ({ createClient: vi.fn() }))
 vi.mock('@/lib/embeddings', () => ({
   generateEmbedding: vi.fn().mockResolvedValue([0.1, 0.2]),
   jobEmbeddingText: () => 'embedding text',
@@ -19,9 +19,10 @@ vi.mock('@/lib/ingest/weworkremotely', () => ({ fetchWeWorkRemotely: vi.fn().moc
 vi.mock('@/lib/ingest/workingnomads', () => ({ fetchWorkingNomads: vi.fn().mockResolvedValue([]) }))
 
 import { ingestAllSources } from '@/lib/ingest'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { fetchRemotive } from '@/lib/ingest/remotive'
 import { STALE_AFTER_DAYS } from '@/lib/job-freshness'
+import type { RawJob } from '@/lib/ingest/types'
 
 type Op = [string, ...unknown[]]
 
@@ -62,7 +63,7 @@ function fakeSupabase(existing: { url: string }[]): { client: unknown; rec: Reco
   return { client: { from: (t: string) => builder(t) }, rec }
 }
 
-const rawJob = (over: Record<string, unknown> = {}) => ({
+const rawJob = (over: Partial<RawJob> = {}): RawJob => ({
   source_id: 'remotive-1', source: 'remotive', title: 'ML Engineer',
   company: 'Acme', description: 'Build models. Hourly contract. '.padEnd(320, 'x'),
   platform: 'Remotive', url: 'https://jobs/new', skills: ['Python'],
@@ -76,7 +77,7 @@ describe('ingestAllSources wiring', () => {
   it('inserts new jobs, bumps last_seen for existing ones, and archives stale jobs', async () => {
     const existing = [{ url: 'https://jobs/existing' }]
     const { client, rec } = fakeSupabase(existing)
-    vi.mocked(createClient).mockResolvedValue(client as never)
+    vi.mocked(createClient).mockReturnValue(client as never)
 
     vi.mocked(fetchRemotive).mockResolvedValue([
       rawJob({ url: 'https://jobs/new' }),
@@ -123,7 +124,7 @@ describe('ingestAllSources wiring', () => {
 
   it('still runs the archive pass when no new jobs are found', async () => {
     const { client, rec } = fakeSupabase([])
-    vi.mocked(createClient).mockResolvedValue(client as never)
+    vi.mocked(createClient).mockReturnValue(client as never)
     vi.mocked(fetchRemotive).mockResolvedValue([])
 
     await ingestAllSources()
