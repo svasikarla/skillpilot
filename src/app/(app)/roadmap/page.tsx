@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import AppNav from '@/components/AppNav'
 import RoadmapClient from './RoadmapClient'
 import { computeRoadmap } from '@/lib/roadmap'
 import { Sparkles, Target, TrendingUp } from 'lucide-react'
+import { PageContainer, RailCard } from '@/components/app-shell/PageContainer'
 
 export default async function RoadmapPage() {
   const supabase = await createClient()
@@ -21,12 +21,34 @@ export default async function RoadmapPage() {
   const learningSkills = (profile.learning_skills as string[]) ?? []
   const gaps = computeRoadmap(profile.skills ?? [], learnedSkills, jobs ?? [])
   const topEarning = gaps.slice(0, 3).reduce((s, g) => s + g.avgRate, 0)
+  const topGap = gaps[0]
+
+  const aside = gaps.length === 0 ? undefined : (
+    <>
+      {topGap && (
+        <RailCard title="Start here" icon={Sparkles}>
+          <p className="text-lg font-bold tracking-tight">{topGap.skill}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Unlocks {topGap.jobsUnlocked} gig{topGap.jobsUnlocked !== 1 ? 's' : ''}
+            {topGap.avgRate > 0 && (
+              <> averaging <span className="font-medium text-emerald-700 dark:text-emerald-400">${topGap.avgRate}/hr</span></>
+            )}.
+          </p>
+        </RailCard>
+      )}
+      <RailCard title="How it works">
+        <ul className="space-y-2 text-sm text-muted-foreground">
+          <li>Gaps are skills in live gigs that aren&apos;t on your profile yet.</li>
+          <li>Ranked by earning impact — demand &times; rate.</li>
+          <li>Mark a skill <span className="text-foreground">learning</span> or <span className="text-foreground">learned</span> to track progress.</li>
+        </ul>
+      </RailCard>
+    </>
+  )
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppNav userName={profile.name} />
-
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+    <div className="bg-background">
+      <PageContainer aside={aside} className="space-y-8">
         <div>
           <h1 className="page-header">Skill Roadmap</h1>
           <p className="page-subheader">Skills missing from your profile that unlock the most AI/ML gigs — ranked by earning impact.</p>
@@ -62,7 +84,7 @@ export default async function RoadmapPage() {
         ) : (
           <RoadmapClient gaps={gaps} initialLearning={learningSkills} initialLearned={learnedSkills} />
         )}
-      </main>
+      </PageContainer>
     </div>
   )
 }

@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import AppNav from '@/components/AppNav'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { ExternalLink, Trash2, Trophy, Send, Clock, Bookmark } from 'lucide-react'
+import { ExternalLink, Trash2, Trophy, Send, Clock, Bookmark, TrendingUp, AlarmClock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { PageContainer, RailCard } from '@/components/app-shell/PageContainer'
+import { computeTrackerAnalytics } from '@/lib/tracker-analytics'
 
 type Job = { id: string; title: string; company: string | null; platform: string; url: string | null; rate_min: number | null; rate_max: number | null }
 type Application = {
@@ -37,17 +38,15 @@ function StatusPill({ status }: { status: string }) {
   )
 }
 
-export default function TrackerClient({ applications: initial, userName }: { applications: Application[]; userName?: string }) {
+export default function TrackerClient({ applications: initial }: { applications: Application[] }) {
   const [apps, setApps]     = useState(initial)
   const [editing, setEditing] = useState<string | null>(null)
   const [notesDraft, setNotesDraft] = useState<Record<string, string>>({})
+  // Stable "now" captured once at mount — avoids impure Date.now() during render.
+  const [now] = useState(() => Date.now())
 
-  const stats = {
-    saved:     apps.filter(a => a.status === 'saved').length,
-    applied:   apps.filter(a => ['submitted','interviewing','negotiating'].includes(a.status)).length,
-    won:       apps.filter(a => a.status === 'won').length,
-    total:     apps.length,
-  }
+  // Pipeline analytics — recomputed live as statuses change.
+  const { stats, decidedCount, winRate, avgWonRate, staleApps } = computeTrackerAnalytics(apps, now)
 
   async function updateStatus(id: string, status: string) {
     const res = await fetch(`/api/applications/${id}`, {
@@ -78,11 +77,50 @@ export default function TrackerClient({ applications: initial, userName }: { app
     else toast.error('Failed')
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <AppNav userName={userName} />
+  const aside = apps.length === 0 ? undefined : (
+    <>
+      <RailCard title="Outcomes" icon={TrendingUp}>
+        <dl className="space-y-2.5">
+          <div className="flex items-baseline justify-between">
+            <dt className="text-sm text-muted-foreground">Win rate</dt>
+            <dd className="text-lg font-bold tabular-nums">{winRate === null ? '—' : `${winRate}%`}</dd>
+          </div>
+          <div className="flex items-baseline justify-between">
+            <dt className="text-sm text-muted-foreground">Avg won rate</dt>
+            <dd className="text-lg font-bold tabular-nums">{avgWonRate === null ? '—' : `$${avgWonRate}/hr`}</dd>
+          </div>
+          <div className="flex items-baseline justify-between">
+            <dt className="text-sm text-muted-foreground">Decided</dt>
+            <dd className="text-lg font-bold tabular-nums">{decidedCount}</dd>
+          </div>
+        </dl>
+        {winRate === null && (
+          <p className="mt-2 text-xs text-muted-foreground">Mark outcomes (won / lost) to see your win rate.</p>
+        )}
+      </RailCard>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+      <RailCard title="Needs a follow-up" icon={AlarmClock}>
+        {staleApps.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nothing stale — your active gigs are all fresh.</p>
+        ) : (
+          <ul className="space-y-2.5">
+            {staleApps.map(({ application, daysStale }) => (
+              <li key={application.id} className="text-sm leading-tight">
+                <span className="font-medium">{application.jobs?.title ?? 'Untitled'}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  No update in {daysStale} days
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </RailCard>
+    </>
+  )
+
+  return (
+    <div className="bg-background">
+      <PageContainer aside={aside} className="space-y-8">
         {/* Header */}
         <div>
           <h1 className="page-header">Application Tracker</h1>
@@ -202,7 +240,7 @@ export default function TrackerClient({ applications: initial, userName }: { app
             })}
           </div>
         )}
-      </main>
+      </PageContainer>
     </div>
   )
 }

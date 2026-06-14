@@ -14,7 +14,6 @@ import { SKILLS_TAXONOMY, SKILL_CLUSTERS, getSkillsByCluster } from '@/lib/skill
 import { ChevronDown, ChevronRight, ChevronLeft, Search } from 'lucide-react'
 import StepIndicator from '@/components/onboarding/StepIndicator'
 import PortfolioStep, { type PortfolioItem } from '@/components/onboarding/PortfolioStep'
-import AppNav from '@/components/AppNav'
 
 const SKILL_BY_CLUSTER = getSkillsByCluster()
 
@@ -196,7 +195,6 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppNav />
       <div className="max-w-2xl mx-auto px-4 py-8">
         <Card>
           <CardHeader>

@@ -214,3 +214,50 @@ describe('computeMatch – weighted final score', () => {
     expect(r.isCapped).toBe(false) // < 3 job skills → no cap
   })
 })
+
+// ── Semantic scoring ─────────────────────────────────────────────────────────
+describe('computeMatch – semantic scoring', () => {
+  it('reports semanticScore 0 when none is supplied', () => {
+    expect(computeMatch(base).semanticScore).toBe(0)
+  })
+
+  it('rounds the supplied semanticScore', () => {
+    // skill=0, rate=50 (no rate), recency=100 (now), semantic=79.6→80
+    // raw = 0*0.5 + 50*0.15 + 100*0.15 + 80*0.20 = 7.5 + 15 + 16 = 38.5 → 39
+    const r = computeMatch({ ...base, semanticScore: 79.6 })
+    expect(r.semanticScore).toBe(80)
+    expect(r.score).toBe(39)
+  })
+
+  it('applies semantic weights: skill 50%, rate 15%, recency 15%, semantic 20%', () => {
+    // skill=0, rate=100, recency=0 (30d), semantic=80
+    // raw = 0*0.5 + 100*0.15 + 0*0.15 + 80*0.20 = 15 + 16 = 31
+    const r = computeMatch({
+      ...base,
+      hourlyRate: 100, jobSkills: ['Python'], jobRateMin: 100, jobRateMax: 100,
+      jobPostedAt: daysAgo(30),
+      semanticScore: 80,
+    })
+    expect(r.score).toBe(31)
+  })
+
+  it('reaches 100 when every component including semantic is perfect', () => {
+    const r = computeMatch({
+      ...base,
+      userSkills: ['Python'], skillRatings: { Python: 5 }, jobSkills: ['Python'],
+      hourlyRate: 100, jobRateMin: 100, jobRateMax: 100,
+      jobPostedAt: NOW,
+      semanticScore: 100,
+    })
+    expect(r.score).toBe(100)
+  })
+
+  it('treats an explicit semanticScore of 0 as "semantic available" and shifts the weights', () => {
+    const common = { ...base, userSkills: ['Python'], skillRatings: { Python: 5 }, jobSkills: ['Python'] }
+    // skill=100, rate=50, recency=100 for both.
+    // with semantic:    100*0.5 + 50*0.15 + 100*0.15 + 0*0.20 = 72.5 → 73
+    // without semantic: 100*0.6 + 50*0.20 + 100*0.20           = 90
+    expect(computeMatch({ ...common, semanticScore: 0 }).score).toBe(73)
+    expect(computeMatch(common).score).toBe(90)
+  })
+})

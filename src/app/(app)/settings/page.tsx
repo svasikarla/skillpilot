@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import AppNav from '@/components/AppNav'
 import SettingsClient from './SettingsClient'
+import { PageContainer } from '@/components/app-shell/PageContainer'
+import { ProfileCompletenessCard } from '@/components/app-shell/ProfileCompletenessCard'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -14,16 +15,17 @@ export default async function SettingsPage() {
     .eq('user_id', user.id)
     .single()
 
+  const aside = profile ? <ProfileCompletenessCard profile={profile} /> : undefined
+
   return (
-    <div className="min-h-screen bg-background">
-      <AppNav userName={profile?.name} />
-      <main className="max-w-2xl mx-auto px-4 py-8">
+    <div className="bg-background">
+      <PageContainer aside={aside} maxWidth="max-w-5xl">
         <div className="mb-8">
           <h1 className="page-header">Settings</h1>
           <p className="page-subheader">Update your profile, skills, and work preferences.</p>
         </div>
         <SettingsClient profile={profile} />
-      </main>
+      </PageContainer>
     </div>
   )
 }
