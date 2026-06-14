@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { computeMatch } from '@/lib/matching'
 import { cosineSimilarity } from '@/lib/embeddings'
+import { feedRecencySinceISO, DEFAULT_FEED_RECENCY_DAYS } from '@/lib/job-freshness'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -67,10 +68,11 @@ export async function GET(request: Request) {
   if (verified) query = query.gte('reliability_score', 70)
   if (rateMin)  query = query.gte('rate_min', rateMin)
   if (rateMax)  query = query.lte('rate_max', rateMax)
-  if (days) {
-    const since = new Date(Date.now() - days * 86400000).toISOString()
-    query = query.gte('posted_at', since)
-  }
+  // Apply a recency cutoff. Defaults to DEFAULT_FEED_RECENCY_DAYS so stale
+  // listings are hidden even when the caller doesn't pass `days`; admins viewing
+  // hidden listings get no default cutoff (they can still pass `days` explicitly).
+  const since = feedRecencySinceISO(days, new Date(), showHidden ? 0 : DEFAULT_FEED_RECENCY_DAYS)
+  if (since) query = query.gte('posted_at', since)
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

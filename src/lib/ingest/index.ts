@@ -8,6 +8,7 @@ import { fetchWeWorkRemotely } from './weworkremotely'
 import { fetchWorkingNomads } from './workingnomads'
 import { scoreReliability } from '@/lib/reliability'
 import { generateEmbedding, jobEmbeddingText } from '@/lib/embeddings'
+import { partitionFetchedJobs, staleCutoffISO } from '@/lib/job-freshness'
 import type { RawJob } from './types'
 
 export interface IngestResult {
@@ -59,8 +60,16 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
     })
 
     const { jobs, error } = await runAdapter(name, fetcher)
-    const newJobs = jobs.filter(j => j.url == null || !existingUrls.has(j.url))
+    const { toInsert: newJobs, urlsToTouch } = partitionFetchedJobs(jobs, existingUrls)
     const duped = jobs.length - newJobs.length
+
+    // Refresh last_seen_at for jobs still present in the source feed so they
+    // are not later archived as stale.
+    if (urlsToTouch.length > 0) {
+      await supabase.from('jobs')
+        .update({ last_seen_at: new Date().toISOString() })
+        .in('url', urlsToTouch)
+    }
 
     if (newJobs.length > 0) {
       const rows = await Promise.all(newJobs.map(async j => {
@@ -84,6 +93,7 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
           reliability_flags: flags,
           source:            j.source,
           status:            score >= 60 ? 'approved' : 'pending',
+          last_seen_at:      new Date().toISOString(),
           ...(embedding ? { embedding: JSON.stringify(embedding) } : {}),
         }
       }))
@@ -106,6 +116,15 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
 
     results.push({ source: name, found: jobs.length, inserted: newJobs.length, duped, error })
   }
+
+  // Archive ingested jobs that have not appeared in any source feed recently —
+  // they are most likely filled or closed. Seed data is left untouched.
+  const { error: archiveErr } = await supabase.from('jobs')
+    .update({ status: 'archived' })
+    .eq('status', 'approved')
+    .neq('source', 'seed')
+    .lt('last_seen_at', staleCutoffISO())
+  if (archiveErr) console.error('[ingest] archive error:', archiveErr.message)
 
   return results
 }

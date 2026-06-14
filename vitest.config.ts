@@ -40,12 +40,12 @@ export default defineConfig({
         'src/components/ui/**',
       ],
       thresholds: {
-        // Honest global floor that guards against regression. The largest remaining
-        // gap is JobCard.tsx (~51%); everything else is well covered.
-        statements: 80,
-        branches:   70,
-        functions:  72,
-        lines:      85,
+        // Honest global floor that guards against regression. Remaining gaps are
+        // mostly presentational (JobDetailSheet tabs, FeatureDemoSection mockups).
+        statements: 84,
+        branches:   75,
+        functions:  78,
+        lines:      90,
         // Core business logic stays near-fully covered: matching.ts, reliability.ts and
         // parse-job-description.ts are ~100%. This guards the src/lib layer as a whole.
         'src/lib/**': {
