@@ -13,11 +13,13 @@ import {
 import { cn } from '@/lib/utils'
 import { tierFromScore, tierLabel } from '@/lib/reliability'
 import ReliabilityExplainer from './ReliabilityExplainer'
+import JobDescription from './JobDescription'
 
 type Job = {
   id: string; title: string; company: string | null; description: string | null
   platform: string; url: string | null; skills: string[]; location: string
   rate_min: number | null; rate_max: number | null; posted_at: string
+  employment_type?: 'contract' | 'full_time' | 'unknown'
   reliability_score?: number; reliability_signals?: Record<string, boolean>
   match_score?: number; matched_skills?: string[]
   skill_score?: number; rate_score?: number; recency_score?: number
@@ -88,6 +90,16 @@ export default function JobDetailSheet({
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 {job.company && <span className="text-xs text-muted-foreground">{job.company}</span>}
                 <span className="text-xs font-semibold text-primary">{job.platform}</span>
+                {job.employment_type && job.employment_type !== 'unknown' && (
+                  <span className={cn(
+                    'text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider border',
+                    job.employment_type === 'contract'
+                      ? 'bg-violet-50 text-violet-700 border-violet-200'
+                      : 'bg-slate-50 text-slate-600 border-slate-200',
+                  )}>
+                    {job.employment_type === 'contract' ? 'Contract' : 'Full-time'}
+                  </span>
+                )}
               </div>
             </div>
             {job.url && (
@@ -129,10 +141,7 @@ export default function JobDetailSheet({
           {/* ── Details tab ─────────────────────────────── */}
           <TabsContent value="details" className="space-y-4 pt-4">
             {job.description && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Description</p>
-                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>
-              </div>
+              <JobDescription description={job.description} title={job.title} />
             )}
 
             <div>

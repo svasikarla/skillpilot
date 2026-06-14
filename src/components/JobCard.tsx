@@ -9,6 +9,7 @@ import {
   ShieldX, Bookmark, BookmarkCheck, Wand2, ChevronDown, ChevronUp, FileText, Flag,
 } from 'lucide-react'
 import ProposalPanelInline from '@/components/apply/ProposalPanel'
+import JobDescription from '@/components/feed/JobDescription'
 import { cn } from '@/lib/utils'
 import { tierFromScore, tierLabel } from '@/lib/reliability'
 import { toast } from 'sonner'
@@ -19,7 +20,23 @@ type Job = {
   id: string; title: string; company: string | null; description: string | null
   platform: string; url: string | null; skills: string[]; location: string
   rate_min: number | null; rate_max: number | null; posted_at: string
+  employment_type?: 'contract' | 'full_time' | 'unknown'
   reliability_score?: number; match_score?: number; matched_skills?: string[]
+}
+
+function EmploymentBadge({ type }: { type?: 'contract' | 'full_time' | 'unknown' }) {
+  if (!type || type === 'unknown') return null
+  const isContract = type === 'contract'
+  return (
+    <span className={cn(
+      'inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider',
+      isContract
+        ? 'bg-violet-50 text-violet-700 border border-violet-200'
+        : 'bg-slate-50 text-slate-600 border border-slate-200',
+    )}>
+      {isContract ? 'Contract' : 'Full-time'}
+    </span>
+  )
 }
 
 function daysAgo(iso: string): string {
@@ -94,6 +111,7 @@ export default function JobCard({
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   {job.company && <span className="text-xs text-muted-foreground">{job.company}</span>}
                   <span className="text-xs font-medium text-primary">{job.platform}</span>
+                  <EmploymentBadge type={job.employment_type} />
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
@@ -121,9 +139,18 @@ export default function JobCard({
 
             {/* Description */}
             {job.description && (
-              <p className={cn('text-xs text-muted-foreground leading-relaxed', expanded ? '' : 'line-clamp-2')}>
-                {job.description}
-              </p>
+              expanded ? (
+                <JobDescription
+                  description={job.description}
+                  title={job.title}
+                  compact
+                  maxBodyChars={600}
+                />
+              ) : (
+                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                  {job.description.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()}
+                </p>
+              )
             )}
 
             {/* Skills */}

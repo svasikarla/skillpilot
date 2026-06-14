@@ -1,4 +1,4 @@
-import { RawJob, isAiMlJob, extractSkillsFromTags } from './types'
+import { RawJob, isAiMlJob, extractSkillsFromTags, inferEmploymentType } from './types'
 
 interface HimalayasJob {
   guid: string
@@ -61,12 +61,16 @@ export async function fetchHimalayas(): Promise<RawJob[]> {
           l.toLowerCase().includes('worldwide') || l.toLowerCase().includes('remote')
         )
 
+      const cleanDesc = (j.description ?? j.excerpt ?? '').replace(/<[^>]*>/g, '').slice(0, 2000)
+      const catHint = [...(j.categories ?? []), ...(j.parentCategories ?? [])]
+        .map(c => c.toLowerCase())
+        .find(c => /contract|freelance|full[- ]?time/.test(c))
       return {
         source_id:   `himalayas-${slugId}`,
         source:      'himalayas',
         title:       j.title,
         company:     j.companyName ?? null,
-        description: (j.description ?? j.excerpt ?? '').replace(/<[^>]*>/g, '').slice(0, 2000),
+        description: cleanDesc,
         platform:    'Himalayas',
         url:         j.applicationLink ?? j.guid,
         skills:      extractSkillsFromTags([
@@ -79,6 +83,7 @@ export async function fetchHimalayas(): Promise<RawJob[]> {
         posted_at:   j.pubDate
           ? new Date(j.pubDate * 1000).toISOString()
           : new Date().toISOString(),
+        employment_type: inferEmploymentType(j.title, cleanDesc, catHint),
       }
     })
 }

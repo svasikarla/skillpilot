@@ -15,10 +15,18 @@ type Job = {
   id: string; title: string; company: string | null; description: string | null
   platform: string; url: string | null; skills: string[]; location: string
   rate_min: number | null; rate_max: number | null; posted_at: string
+  employment_type?: 'contract' | 'full_time' | 'unknown'
   reliability_score?: number; reliability_signals?: Record<string, boolean>
   match_score?: number; matched_skills?: string[]
   skill_score?: number; rate_score?: number; recency_score?: number
 }
+
+type EmploymentFilter = 'contract' | 'full_time' | 'all'
+const TYPE_OPTIONS: Array<{ value: EmploymentFilter; label: string }> = [
+  { value: 'contract',  label: 'Contract / Freelance' },
+  { value: 'full_time', label: 'Full-time' },
+  { value: 'all',       label: 'All types' },
+]
 
 const MATCH_OPTIONS = [
   { label: 'Any match', value: '' },
@@ -48,6 +56,7 @@ export default function FeedContent({ userSkills }: { userSkills: string[] }) {
   const [savedJobIds, setSavedJobIds]   = useState<Set<string>>(new Set())
 
   const [platformFilter, setPlatformFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState<EmploymentFilter>('contract')
   const [detailJob, setDetailJob]           = useState<Job | null>(null)
   const [proposalJobId, setProposalJobId]   = useState<string | null>(null)
   const initialised = useRef(false)
@@ -74,12 +83,13 @@ export default function FeedContent({ userSkills }: { userSkills: string[] }) {
     if (rateMax)                  params.set('rate_max', rateMax)
     if (matchFilter === 'near_miss') { params.set('near_miss', '1') }
     else if (matchFilter)         params.set('match_min', matchFilter)
+    params.set('employment_type', typeFilter)
 
     const res  = await fetch(`/api/jobs?${params}`)
     const data = await res.json()
     setJobs(data.jobs ?? [])
     setLoading(false)
-  }, [query, activeSkill, verifiedOnly, showHidden, daysFilter, rateMin, rateMax, matchFilter, platformFilter])
+  }, [query, activeSkill, verifiedOnly, showHidden, daysFilter, rateMin, rateMax, matchFilter, platformFilter, typeFilter])
 
   useEffect(() => {
     const id = setTimeout(fetchJobs, 280)
@@ -122,6 +132,24 @@ export default function FeedContent({ userSkills }: { userSkills: string[] }) {
             <X className="h-3.5 w-3.5" />
           </button>
         )}
+      </div>
+
+      {/* Employment-type segmented control */}
+      <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg w-fit">
+        {TYPE_OPTIONS.map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => setTypeFilter(opt.value)}
+            className={cn(
+              'text-xs font-medium px-3 py-1.5 rounded-md transition-colors',
+              typeFilter === opt.value
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {/* Platform filter badge (set from URL) */}
@@ -258,8 +286,17 @@ export default function FeedContent({ userSkills }: { userSkills: string[] }) {
         <div className="text-center py-20 border border-dashed border-border rounded-xl">
           <Search className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
           <p className="font-medium text-foreground">No gigs found</p>
-          <p className="text-sm text-muted-foreground mt-1">Try different keywords or clear filters.</p>
-          <div className="flex justify-center gap-3 mt-4">
+          <p className="text-sm text-muted-foreground mt-1">
+            {typeFilter === 'contract'
+              ? 'No contract or freelance listings match your filters. Try "All types" or widen filters.'
+              : 'Try different keywords or clear filters.'}
+          </p>
+          <div className="flex justify-center gap-3 mt-4 flex-wrap">
+            {typeFilter !== 'all' && (
+              <button onClick={() => setTypeFilter('all')} className="text-xs text-primary underline">
+                Show all types
+              </button>
+            )}
             <a href="/api/cron/ingest" className="text-xs text-primary underline">Run ingestion</a>
             <span className="text-muted-foreground text-xs">·</span>
             <a href="/api/seed" className="text-xs text-primary underline">Load sample data</a>

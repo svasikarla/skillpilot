@@ -15,6 +15,8 @@ export async function GET(request: Request) {
   const matchMin    = searchParams.get('match_min') ? Number(searchParams.get('match_min')) : null
   const nearMiss    = searchParams.get('near_miss') === '1'
   const showHidden  = searchParams.get('show_hidden') === '1'
+  // employment_type=contract | full_time | all  (default: contract)
+  const typeParam   = searchParams.get('employment_type')?.trim() ?? 'contract'
 
   const supabase = await createClient()
 
@@ -40,9 +42,17 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from('jobs')
-    .select('id, title, company, description, platform, url, skills, location, rate_min, rate_max, posted_at, reliability_score, reliability_flags, embedding')
+    .select('id, title, company, description, platform, url, skills, location, rate_min, rate_max, posted_at, reliability_score, reliability_flags, employment_type, embedding')
     .order('posted_at', { ascending: false })
     .limit(150)
+
+  // Employment-type filter — default to contract (includes 'unknown' since those
+  // may well be contract roles we couldn't confidently classify).
+  if (typeParam === 'contract') {
+    query = query.in('employment_type', ['contract', 'unknown'])
+  } else if (typeParam === 'full_time') {
+    query = query.eq('employment_type', 'full_time')
+  } // 'all' → no filter
 
   // Status filter — show hidden listings when requested
   if (showHidden) {

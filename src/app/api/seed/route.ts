@@ -35,6 +35,7 @@ export async function GET() {
   const jobs = SEED_JOBS.map(j => ({
     ...j,
     location: 'Remote',
+    employment_type: 'contract' as const,
     posted_at: new Date(Date.now() - Math.random() * 14 * 24 * 60 * 60 * 1000).toISOString(),
   }))
 

@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
@@ -8,12 +10,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full bg-primary/6 blur-3xl pointer-events-none" />
 
         <div className="relative">
-          <div className="flex items-center gap-3 mb-12">
+          <Link href="/" className="flex items-center gap-3 mb-12 hover:opacity-80 transition-opacity w-fit">
             <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shadow-md">
               <span className="text-primary-foreground text-sm font-bold">AI</span>
             </div>
             <span className="font-semibold text-foreground">AI/ML Freelance Hub</span>
-          </div>
+          </Link>
 
           <blockquote className="space-y-3">
             <p className="text-xl font-semibold tracking-tight text-foreground leading-snug">

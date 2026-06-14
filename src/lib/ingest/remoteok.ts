@@ -1,4 +1,4 @@
-import { RawJob, isAiMlJob, extractSkillsFromTags } from './types'
+import { RawJob, isAiMlJob, extractSkillsFromTags, inferEmploymentType } from './types'
 
 interface RemoteOKJob {
   id: string
@@ -28,12 +28,14 @@ export async function fetchRemoteOK(): Promise<RawJob[]> {
     .map(j => {
       const hourlyMin = j.salary_min > 1000 ? Math.round(j.salary_min / 2000) : (j.salary_min || null)
       const hourlyMax = j.salary_max > 1000 ? Math.round(j.salary_max / 2000) : (j.salary_max || null)
+      const cleanDesc = (j.description ?? '').replace(/<[^>]*>/g, '').slice(0, 2000)
+      const tagHint = (j.tags ?? []).find(t => /^(contract|freelance|full[- ]?time)$/i.test(t))
       return {
         source_id: `remoteok-${j.id}`,
         source: 'remoteok',
         title: j.position,
         company: j.company || null,
-        description: (j.description ?? '').replace(/<[^>]*>/g, '').slice(0, 2000),
+        description: cleanDesc,
         platform: 'RemoteOK',
         url: j.apply_url ?? j.url ?? `https://remoteok.com/remote-jobs/${j.id}`,
         skills: extractSkillsFromTags(j.tags ?? []),
@@ -41,6 +43,7 @@ export async function fetchRemoteOK(): Promise<RawJob[]> {
         rate_min: hourlyMin,
         rate_max: hourlyMax,
         posted_at: j.epoch ? new Date(j.epoch * 1000).toISOString() : new Date().toISOString(),
+        employment_type: inferEmploymentType(j.position, cleanDesc, tagHint),
       }
     })
 }

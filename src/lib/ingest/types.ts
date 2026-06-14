@@ -1,3 +1,5 @@
+export type EmploymentType = 'contract' | 'full_time' | 'unknown'
+
 export interface RawJob {
   source_id: string        // unique ID from the source platform
   source: string           // 'remotive' | 'remoteok' | 'himalayas'
@@ -11,6 +13,40 @@ export interface RawJob {
   rate_min: number | null
   rate_max: number | null
   posted_at: string        // ISO datetime
+  employment_type: EmploymentType
+}
+
+const CONTRACT_TERMS = [
+  'contract', 'contractor', 'freelance', 'freelancer', 'consultant',
+  '1099', 'c2c', 'corp-to-corp', 'corp to corp',
+  'project-based', 'project based', 'short-term engagement',
+  'fixed-term', 'fixed term', 'hourly rate', 'per hour',
+  '/hr', '/hour', 'contract-to-hire',
+]
+
+const FULL_TIME_TERMS = [
+  'full-time', 'full time', 'permanent position', 'permanent role',
+  'salaried', 'annual salary', 'equity grant', 'stock options',
+  '401(k)', 'paid time off',
+]
+
+export function inferEmploymentType(
+  title: string,
+  description: string,
+  hint?: string,
+): EmploymentType {
+  const hintLower = (hint ?? '').toLowerCase().trim()
+  if (hintLower === 'contract' || hintLower === 'freelance' || hintLower === 'temporary') return 'contract'
+  if (hintLower === 'full_time' || hintLower === 'full-time' || hintLower === 'fulltime') return 'full_time'
+
+  const text = `${title}\n${description}`.toLowerCase()
+  const contractHits = CONTRACT_TERMS.some(t => text.includes(t))
+  const fullTimeHits = FULL_TIME_TERMS.some(t => text.includes(t))
+
+  if (contractHits && !fullTimeHits) return 'contract'
+  if (fullTimeHits && !contractHits) return 'full_time'
+  // Tied or unsure → unknown (UI shows under "All types" but not under "Contract only")
+  return 'unknown'
 }
 
 export const AI_ML_KEYWORDS = [

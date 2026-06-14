@@ -1,4 +1,4 @@
-import { RawJob, isAiMlJob, extractSkillsFromTags } from './types'
+import { RawJob, isAiMlJob, extractSkillsFromTags, inferEmploymentType } from './types'
 
 interface AlgoliaStoryHit {
   objectID: string
@@ -72,6 +72,7 @@ export async function fetchHNWhoIsHiring(): Promise<RawJob[]> {
         rate_min:    null,
         rate_max:    null,
         posted_at:   h.created_at ?? new Date().toISOString(),
+        employment_type: inferEmploymentType(title, text),
       }
     })
 }

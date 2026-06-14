@@ -1,4 +1,4 @@
-import { RawJob, isAiMlJob, extractSkillsFromTags } from './types'
+import { RawJob, isAiMlJob, extractSkillsFromTags, inferEmploymentType } from './types'
 
 interface WorkingNomadsJob {
   id: string | number
@@ -41,12 +41,14 @@ export async function fetchWorkingNomads(): Promise<RawJob[]> {
     .filter(j => isAiMlJob(j.title, j.description ?? '', j.tags ?? []))
     .map(j => {
       const { min, max } = parseSalary(j.salary)
+      const cleanDesc = (j.description ?? '').replace(/<[^>]*>/g, '').slice(0, 2000)
+      const tagHint = (j.tags ?? []).find(t => /^(contract|freelance|full[- ]?time)$/i.test(t))
       return {
         source_id:   `workingnomads-${j.id}`,
         source:      'workingnomads',
         title:       j.title,
         company:     j.company || null,
-        description: (j.description ?? '').replace(/<[^>]*>/g, '').slice(0, 2000),
+        description: cleanDesc,
         platform:    'Working Nomads',
         url:         j.url,
         skills:      extractSkillsFromTags(j.tags ?? []),
@@ -54,6 +56,7 @@ export async function fetchWorkingNomads(): Promise<RawJob[]> {
         rate_min:    min,
         rate_max:    max,
         posted_at:   j.pub_date ? new Date(j.pub_date).toISOString() : new Date().toISOString(),
+        employment_type: inferEmploymentType(j.title, cleanDesc, tagHint),
       }
     })
 }

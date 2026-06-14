@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Loader2, Mail, Lock } from 'lucide-react'
+import { Loader2, Mail, Lock, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -85,13 +86,21 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-sm space-y-8">
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to home
+      </Link>
+
       {/* Mobile logo */}
-      <div className="flex lg:hidden items-center gap-2.5 justify-center">
+      <Link href="/" className="flex lg:hidden items-center gap-2.5 justify-center hover:opacity-80 transition-opacity">
         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
           <span className="text-primary-foreground text-xs font-bold">AI</span>
         </div>
         <span className="font-semibold">AI/ML Freelance Hub</span>
-      </div>
+      </Link>
 
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>

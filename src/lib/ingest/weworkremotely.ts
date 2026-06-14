@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser'
-import { RawJob, isAiMlJob, extractSkillsFromTags } from './types'
+import { RawJob, EmploymentType, isAiMlJob, extractSkillsFromTags, inferEmploymentType } from './types'
 
 interface WWRItem {
   title: string
@@ -35,12 +35,12 @@ function tagCandidatesFromText(text: string): string[] {
   ].filter(t => lower.includes(t.replace('-', ' ')))
 }
 
-export async function fetchWeWorkRemotely(): Promise<RawJob[]> {
-  const res = await fetch(
-    'https://weworkremotely.com/categories/remote-programming-jobs.rss',
-    { headers: { 'User-Agent': 'aiml-freelance-hub/1.0' }, next: { revalidate: 0 } }
-  )
-  if (!res.ok) throw new Error(`We Work Remotely RSS fetch failed: ${res.status}`)
+async function fetchFeed(url: string, forcedType: EmploymentType | null): Promise<RawJob[]> {
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'aiml-freelance-hub/1.0' },
+    next: { revalidate: 0 },
+  })
+  if (!res.ok) throw new Error(`We Work Remotely RSS fetch failed (${url}): ${res.status}`)
 
   const xml = await res.text()
   const parser = new XMLParser({ ignoreAttributes: false, cdataPropName: '__cdata' })
@@ -72,6 +72,27 @@ export async function fetchWeWorkRemotely(): Promise<RawJob[]> {
         rate_min:    null,
         rate_max:    null,
         posted_at:   j.pubDate ? new Date(j.pubDate).toISOString() : new Date().toISOString(),
-      }
+        employment_type: forcedType ?? inferEmploymentType(title, desc),
+      } satisfies RawJob
     })
+}
+
+export async function fetchWeWorkRemotely(): Promise<RawJob[]> {
+  const [programming, contracts] = await Promise.all([
+    fetchFeed('https://weworkremotely.com/categories/remote-programming-jobs.rss', null),
+    fetchFeed('https://weworkremotely.com/categories/remote-contract-jobs.rss', 'contract').catch(err => {
+      console.warn('[ingest] WWR contracts feed failed:', err)
+      return []
+    }),
+  ])
+
+  // Dedup by source_id (a job can appear in both feeds)
+  const seen = new Set<string>()
+  const merged: RawJob[] = []
+  for (const job of [...contracts, ...programming]) {
+    if (seen.has(job.source_id)) continue
+    seen.add(job.source_id)
+    merged.push(job)
+  }
+  return merged
 }

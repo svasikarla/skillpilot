@@ -79,6 +79,7 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
           rate_min:          j.rate_min,
           rate_max:          j.rate_max,
           posted_at:         j.posted_at,
+          employment_type:   j.employment_type,
           reliability_score: score,
           reliability_flags: flags,
           source:            j.source,
