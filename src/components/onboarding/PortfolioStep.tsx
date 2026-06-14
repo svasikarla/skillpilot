@@ -80,7 +80,7 @@ export default function PortfolioStep({
         <div key={i} className="border rounded-lg p-4 space-y-3 bg-muted/10">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Project {i + 1}</span>
-            <button type="button" onClick={() => removeItem(i)}
+            <button type="button" onClick={() => removeItem(i)} aria-label={`Remove project ${i + 1}`}
               className="p-1 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors">
               <Trash2 className="h-3.5 w-3.5" />
             </button>
