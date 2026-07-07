@@ -15,6 +15,7 @@ interface Job {
   skills: string[]
   rate_min: number | null
   rate_max: number | null
+  rate_type?: 'hourly' | 'fixed' | null
 }
 
 export function computeRoadmap(
@@ -32,7 +33,10 @@ export function computeRoadmap(
   const gapMap = new Map<string, { count: number; rateSum: number; rateCount: number }>()
 
   for (const job of jobs) {
-    const jobRate = job.rate_min && job.rate_max
+    // Fixed budgets are project totals, not hourly rates — count the job for
+    // demand but keep its budget out of the $/hr averages.
+    const jobRate = job.rate_type === 'fixed' ? 0
+      : job.rate_min && job.rate_max
       ? (job.rate_min + job.rate_max) / 2
       : job.rate_min ?? job.rate_max ?? 0
 

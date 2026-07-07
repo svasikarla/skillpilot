@@ -25,7 +25,7 @@ const QUALITY_PHRASES = [
   'escrow', 'milestone payment', 'full-time', 'contract', 'part-time',
 ]
 
-export function scoreReliability(job: Pick<RawJob, 'title' | 'description' | 'platform' | 'rate_min' | 'rate_max' | 'company' | 'url'>): ReliabilityResult {
+export function scoreReliability(job: Pick<RawJob, 'title' | 'description' | 'platform' | 'rate_min' | 'rate_max' | 'rate_type' | 'company' | 'url'>): ReliabilityResult {
   const text = `${job.title} ${job.description}`.toLowerCase()
   const platformLower = (job.platform ?? '').toLowerCase()
   const flags: string[] = []
@@ -82,8 +82,9 @@ export function scoreReliability(job: Pick<RawJob, 'title' | 'description' | 'pl
     flags.push('No company name')
   }
 
-  // suspicious rate: > $400/hr for AI/ML (likely annual salary misrepresented)
-  if (job.rate_min && job.rate_min > 400) {
+  // suspicious rate: > $400/hr for AI/ML (likely annual salary misrepresented).
+  // Fixed project budgets are totals, not hourly rates — a $3,000 budget is fine.
+  if (job.rate_type !== 'fixed' && job.rate_min && job.rate_min > 400) {
     score -= 10
     flags.push('Unusually high hourly rate')
   }

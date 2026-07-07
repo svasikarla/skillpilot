@@ -69,6 +69,7 @@ function AuditSection({ type, items, done, onToggle }: {
 interface Benchmark {
   platform: string; count: number
   min: number; p25: number; p50: number; p75: number; max: number; avg: number
+  source?: 'community' | 'market'
 }
 
 export default function AuditPage() {
@@ -164,7 +165,7 @@ export default function AuditPage() {
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-primary" />
             <h2 className="font-semibold text-sm">Group Rate Benchmarks</h2>
-            <span className="text-xs text-muted-foreground">(from won applications)</span>
+            <span className="text-xs text-muted-foreground">(member wins, or market estimates until we have them)</span>
           </div>
           {benchLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
@@ -192,7 +193,9 @@ export default function AuditPage() {
                       <td className="px-3 py-2 font-semibold text-foreground">${b.p50}/hr</td>
                       <td className="px-3 py-2 text-muted-foreground">${b.p75}/hr</td>
                       <td className="px-3 py-2 text-muted-foreground">${b.avg}/hr</td>
-                      <td className="px-3 py-2 text-muted-foreground">{b.count}</td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {b.source === 'market' ? <span className="italic">market est.</span> : b.count}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -19,7 +19,7 @@ export async function GET() {
 
   const { data: jobs, error } = await supabase
     .from('jobs')
-    .select('skills, rate_min, rate_max')
+    .select('skills, rate_min, rate_max, rate_type')
     .eq('status', 'approved')
     .limit(500)
 

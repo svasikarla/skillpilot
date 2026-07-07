@@ -24,14 +24,14 @@ export async function GET(request: Request) {
   // Fetch new jobs from last 7 days
   const { data: newJobs } = await supabase
     .from('jobs')
-    .select('id, title, platform, url, skills, rate_min, rate_max, posted_at')
+    .select('id, title, platform, url, skills, rate_min, rate_max, rate_type, posted_at')
     .eq('status', 'approved')
     .gte('posted_at', sevenDaysAgo)
     .limit(200)
 
   // Fetch all approved jobs for roadmap
   const { data: allJobs } = await supabase
-    .from('jobs').select('skills, rate_min, rate_max').eq('status', 'approved').limit(500)
+    .from('jobs').select('skills, rate_min, rate_max, rate_type').eq('status', 'approved').limit(500)
 
   let sent = 0
 
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
     // Top 5 job matches from new jobs
     const scored = (newJobs ?? []).map(job => ({
       ...job,
-      match: computeMatch({ userSkills, skillRatings, hourlyRate, jobSkills: job.skills ?? [], jobRateMin: job.rate_min, jobRateMax: job.rate_max, jobPostedAt: job.posted_at }),
+      match: computeMatch({ userSkills, skillRatings, hourlyRate, jobSkills: job.skills ?? [], jobRateMin: job.rate_min, jobRateMax: job.rate_max, jobRateType: job.rate_type ?? 'hourly', jobPostedAt: job.posted_at }),
     }))
     scored.sort((a, b) => b.match.score - a.match.score)
     const top5 = scored.slice(0, 5)
