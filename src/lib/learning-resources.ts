@@ -7,8 +7,21 @@ export interface LearningResource {
   est_hours: number
 }
 
-// Static map: skill name (lowercase) → best free/cheap learning resource
+// Static map: canonical skill name (lowercase, see skills-canonical.ts) → best
+// free/cheap learning resource
 const RESOURCES: Record<string, LearningResource> = {
+  // Umbrella skills — the most common gaps surfaced from job-board tags
+  'machine learning': { title: 'Intro to Machine Learning', provider: 'Kaggle Learn', url: 'https://www.kaggle.com/learn/intro-to-machine-learning', format: 'course', cost: 'free', est_hours: 5 },
+  'deep learning': { title: 'Practical Deep Learning for Coders', provider: 'fast.ai', url: 'https://course.fast.ai', format: 'course', cost: 'free', est_hours: 24 },
+  'data science': { title: 'Data Science Courses', provider: 'Kaggle Learn', url: 'https://www.kaggle.com/learn', format: 'course', cost: 'free', est_hours: 12 },
+  'nlp': { title: 'HuggingFace NLP Course', provider: 'HuggingFace', url: 'https://huggingface.co/learn/nlp-course/chapter1/1', format: 'course', cost: 'free', est_hours: 12 },
+  'computer vision': { title: 'PyTorch Vision Tutorial', provider: 'PyTorch Docs', url: 'https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html', format: 'tutorial', cost: 'free', est_hours: 6 },
+  'data engineering': { title: 'Data Engineering Zoomcamp', provider: 'DataTalksClub', url: 'https://github.com/DataTalksClub/data-engineering-zoomcamp', format: 'course', cost: 'free', est_hours: 30 },
+  'mlops / llmops': { title: 'MLOps Zoomcamp', provider: 'DataTalksClub', url: 'https://github.com/DataTalksClub/mlops-zoomcamp', format: 'course', cost: 'free', est_hours: 20 },
+  'fine-tuning': { title: 'Finetuning Large Language Models', provider: 'DeepLearning.AI', url: 'https://www.deeplearning.ai/short-courses/finetuning-large-language-models/', format: 'course', cost: 'free', est_hours: 2 },
+  'cloud (aws/gcp/azure)': { title: 'AWS ML Learning Plan', provider: 'AWS Skill Builder', url: 'https://explore.skillbuilder.aws/learn/public/learning_plan/view/28/machine-learning-learning-plan', format: 'course', cost: 'free', est_hours: 20 },
+  'kubernetes': { title: 'Kubernetes Basics', provider: 'Kubernetes Docs', url: 'https://kubernetes.io/docs/tutorials/kubernetes-basics/', format: 'tutorial', cost: 'free', est_hours: 6 },
+
   'python': { title: 'Python for Everybody', provider: 'Coursera (U Michigan)', url: 'https://www.coursera.org/specializations/python', format: 'course', cost: 'free', est_hours: 8 },
   'pytorch': { title: 'Deep Learning with PyTorch', provider: 'fast.ai', url: 'https://course.fast.ai', format: 'course', cost: 'free', est_hours: 20 },
   'tensorflow / jax': { title: 'TensorFlow Developer Certificate', provider: 'DeepLearning.AI', url: 'https://www.deeplearning.ai/courses/tensorflow-developer-professional-certificate/', format: 'course', cost: 'paid', est_hours: 40 },

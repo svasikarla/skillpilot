@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { computeMatch } from '@/lib/matching'
 import { computeRoadmap } from '@/lib/roadmap'
+import { prepareUserSkills } from '@/lib/skills-canonical'
 
 export async function GET(request: Request) {
   const auth = request.headers.get('authorization')
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
   let sent = 0
 
   for (const member of members) {
-    const userSkills    = member.skills ?? []
+    const userSkills    = prepareUserSkills(member.skills ?? [])
     const skillRatings  = (member.skill_ratings as Record<string, number>) ?? {}
     const hourlyRate    = member.hourly_rate ?? null
     const learnedSkills = (member.learned_skills as string[]) ?? []

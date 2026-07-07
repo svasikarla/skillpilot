@@ -5,6 +5,7 @@ export interface Skill {
 }
 
 export const SKILL_CLUSTERS = [
+  'Core ML',
   'LLM Core',
   'LLM Orchestration',
   'RAG & Vector Search',
@@ -20,6 +21,14 @@ export const SKILL_CLUSTERS = [
 export type SkillCluster = typeof SKILL_CLUSTERS[number]
 
 export const SKILLS_TAXONOMY: Skill[] = [
+  // ── Core ML ────────────────────────────────────────────────────────────────
+  // Umbrella skills. Job boards tag listings with these generic terms, so they
+  // must exist in the canonical vocabulary for matching to work (see
+  // skills-canonical.ts, which also expands specific skills to these umbrellas).
+  { id: 'machine-learning',    name: 'Machine Learning',        cluster: 'Core ML' },
+  { id: 'deep-learning',       name: 'Deep Learning',           cluster: 'Core ML' },
+  { id: 'data-science',        name: 'Data Science',            cluster: 'Core ML' },
+
   // ── LLM Core ───────────────────────────────────────────────────────────────
   { id: 'openai-api',          name: 'OpenAI API',              cluster: 'LLM Core' },
   { id: 'anthropic-api',       name: 'Anthropic / Claude API',  cluster: 'LLM Core' },
@@ -60,6 +69,7 @@ export const SKILLS_TAXONOMY: Skill[] = [
   { id: 'mcp',                 name: 'MCP (Model Context Protocol)', cluster: 'Agents & Automation' },
 
   // ── Fine-tuning ────────────────────────────────────────────────────────────
+  { id: 'fine-tuning',         name: 'Fine-tuning',             cluster: 'Fine-tuning' },
   { id: 'lora-qlora',          name: 'LoRA / QLoRA',            cluster: 'Fine-tuning' },
   { id: 'sft',                 name: 'Supervised Fine-tuning',  cluster: 'Fine-tuning' },
   { id: 'dpo-rlhf',           name: 'DPO / RLHF',              cluster: 'Fine-tuning' },
@@ -69,6 +79,8 @@ export const SKILLS_TAXONOMY: Skill[] = [
   { id: 'hf-trl',              name: 'Hugging Face TRL',        cluster: 'Fine-tuning' },
 
   // ── MLOps & LLMOps ────────────────────────────────────────────────────────
+  { id: 'mlops-llmops',        name: 'MLOps / LLMOps',          cluster: 'MLOps & LLMOps' },
+  { id: 'cloud-ml',            name: 'Cloud (AWS/GCP/Azure)',   cluster: 'MLOps & LLMOps' },
   { id: 'mlflow',              name: 'MLflow',                  cluster: 'MLOps & LLMOps' },
   { id: 'wandb',               name: 'Weights & Biases',        cluster: 'MLOps & LLMOps' },
   { id: 'langsmith',           name: 'LangSmith / LangFuse',    cluster: 'MLOps & LLMOps' },
@@ -79,6 +91,7 @@ export const SKILLS_TAXONOMY: Skill[] = [
   { id: 'monitoring-ml',       name: 'Model Monitoring / Drift',cluster: 'MLOps & LLMOps' },
 
   // ── Computer Vision ────────────────────────────────────────────────────────
+  { id: 'computer-vision',     name: 'Computer Vision',         cluster: 'Computer Vision' },
   { id: 'pytorch-vision',      name: 'PyTorch (Vision)',        cluster: 'Computer Vision' },
   { id: 'object-detection',    name: 'Object Detection (YOLO)', cluster: 'Computer Vision' },
   { id: 'image-segmentation',  name: 'Image Segmentation',      cluster: 'Computer Vision' },
@@ -88,6 +101,7 @@ export const SKILLS_TAXONOMY: Skill[] = [
   { id: 'video-analysis',      name: 'Video Analysis',          cluster: 'Computer Vision' },
 
   // ── NLP ────────────────────────────────────────────────────────────────────
+  { id: 'nlp',                 name: 'NLP',                     cluster: 'NLP' },
   { id: 'hf-transformers',     name: 'HuggingFace Transformers',cluster: 'NLP' },
   { id: 'text-classification', name: 'Text Classification',     cluster: 'NLP' },
   { id: 'ner',                 name: 'NER (Named Entity Recognition)', cluster: 'NLP' },
@@ -98,6 +112,7 @@ export const SKILLS_TAXONOMY: Skill[] = [
   { id: 'translation',         name: 'Machine Translation',     cluster: 'NLP' },
 
   // ── Data Engineering ───────────────────────────────────────────────────────
+  { id: 'data-engineering',    name: 'Data Engineering',        cluster: 'Data Engineering' },
   { id: 'pandas-polars',       name: 'Pandas / Polars',         cluster: 'Data Engineering' },
   { id: 'pyspark',             name: 'PySpark',                 cluster: 'Data Engineering' },
   { id: 'sql',                 name: 'SQL',                     cluster: 'Data Engineering' },

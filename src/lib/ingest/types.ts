@@ -1,3 +1,5 @@
+import { canonicalizeSkills } from '@/lib/skills-canonical'
+
 export type EmploymentType = 'contract' | 'full_time' | 'unknown'
 export type RateType = 'hourly' | 'fixed'
 
@@ -74,29 +76,8 @@ export function isAiMlJob(title: string, description: string, tags: string[]): b
   return AI_ML_KEYWORDS.some(kw => text.includes(kw))
 }
 
+// Job tags → canonical taxonomy skill names, so job skills, user profile
+// skills, and learning resources all share one vocabulary (skills-canonical.ts).
 export function extractSkillsFromTags(tags: string[]): string[] {
-  const SKILL_MAP: Record<string, string> = {
-    python: 'Python', pytorch: 'PyTorch', tensorflow: 'TensorFlow',
-    'machine-learning': 'Machine Learning', 'machine learning': 'Machine Learning',
-    'deep-learning': 'Deep Learning', 'deep learning': 'Deep Learning',
-    nlp: 'NLP', 'computer-vision': 'Computer Vision', 'computer vision': 'Computer Vision',
-    'hugging-face': 'Hugging Face', 'huggingface': 'Hugging Face',
-    llm: 'LLMs / Prompt Engineering', 'large-language-models': 'LLMs / Prompt Engineering',
-    rag: 'RAG / Vector Search', mlops: 'MLOps / LLMOps', llmops: 'MLOps / LLMOps',
-    'data-science': 'Data Science', 'data science': 'Data Science',
-    sql: 'SQL', docker: 'Docker', fastapi: 'FastAPI',
-    aws: 'Cloud (AWS/GCP/Azure)', gcp: 'Cloud (AWS/GCP/Azure)', azure: 'Cloud (AWS/GCP/Azure)',
-    'fine-tuning': 'Fine-tuning', finetuning: 'Fine-tuning',
-    'data-engineering': 'Data Engineering', 'data engineering': 'Data Engineering',
-  }
-  const seen = new Set<string>()
-  const result: string[] = []
-  for (const tag of tags) {
-    const mapped = SKILL_MAP[tag.toLowerCase()]
-    if (mapped && !seen.has(mapped)) {
-      seen.add(mapped)
-      result.push(mapped)
-    }
-  }
-  return result
+  return canonicalizeSkills(tags)
 }

@@ -1,4 +1,5 @@
 import { getResourceForSkill, type LearningResource } from './learning-resources'
+import { canonicalizeSkill, expandWithUmbrellas } from './skills-canonical'
 
 export interface SkillGap {
   skill: string
@@ -21,10 +22,12 @@ export function computeRoadmap(
   learnedSkills: string[],
   jobs: Job[]
 ): SkillGap[] {
-  const knownLower = new Set([
-    ...userSkills.map(s => s.toLowerCase()),
-    ...learnedSkills.map(s => s.toLowerCase()),
-  ])
+  // Umbrella expansion stops the roadmap recommending 'RAG Pipelines' to
+  // someone who already knows Pinecone; canonicalizing job skills makes gap
+  // names line up with the learning-resources map.
+  const knownLower = new Set(
+    expandWithUmbrellas([...userSkills, ...learnedSkills]).map(s => s.toLowerCase())
+  )
 
   const gapMap = new Map<string, { count: number; rateSum: number; rateCount: number }>()
 
@@ -33,7 +36,10 @@ export function computeRoadmap(
       ? (job.rate_min + job.rate_max) / 2
       : job.rate_min ?? job.rate_max ?? 0
 
-    for (const skill of job.skills ?? []) {
+    const jobSkills = new Set(
+      (job.skills ?? []).map(s => canonicalizeSkill(s) ?? s)
+    )
+    for (const skill of jobSkills) {
       if (!knownLower.has(skill.toLowerCase())) {
         const entry = gapMap.get(skill) ?? { count: 0, rateSum: 0, rateCount: 0 }
         entry.count += 1

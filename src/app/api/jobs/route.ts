@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { computeMatch } from '@/lib/matching'
+import { prepareUserSkills } from '@/lib/skills-canonical'
 import { cosineSimilarity } from '@/lib/embeddings'
 import { feedRecencySinceISO, DEFAULT_FEED_RECENCY_DAYS } from '@/lib/job-freshness'
 
@@ -34,7 +35,9 @@ export async function GET(request: Request) {
       .eq('user_id', user.id)
       .single()
     if (profile) {
-      userSkills    = profile.skills ?? []
+      // Canonicalize + add umbrella skills so specific user skills (Pinecone)
+      // also match generic job tags (RAG Pipelines).
+      userSkills    = prepareUserSkills(profile.skills ?? [])
       skillRatings  = (profile.skill_ratings as Record<string, number>) ?? {}
       hourlyRate    = profile.hourly_rate ?? null
       profileVector = profile.embedding ? JSON.parse(profile.embedding as string) : null
