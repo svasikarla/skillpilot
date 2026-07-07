@@ -17,10 +17,21 @@ interface FindworkResponse {
 }
 
 export async function fetchFindwork(): Promise<RawJob[]> {
+  // Findwork's API always requires token auth (anonymous requests 401).
+  // Free key from https://findwork.dev/developers/ — skip cleanly without one.
+  const apiKey = process.env.FINDWORK_API_KEY
+  if (!apiKey) {
+    console.warn('[ingest] findwork skipped: FINDWORK_API_KEY not set')
+    return []
+  }
   const res = await fetch(
     'https://findwork.dev/api/jobs/?search=machine+learning+AI+LLM&remote=true&ordering=-date',
     {
-      headers: { 'User-Agent': 'aiml-freelance-hub/1.0', Accept: 'application/json' },
+      headers: {
+        'User-Agent': 'aiml-freelance-hub/1.0',
+        Accept: 'application/json',
+        Authorization: `Token ${apiKey}`,
+      },
       next: { revalidate: 0 },
     }
   )

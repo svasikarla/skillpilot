@@ -34,7 +34,10 @@ interface Recorder {
   archiveUpdates: Op[][]
 }
 
-function fakeSupabase(existing: { url: string }[]): { client: unknown; rec: Recorder } {
+function fakeSupabase(
+  existing: { url: string }[],
+  opts: { failInsert?: boolean } = {},
+): { client: unknown; rec: Recorder } {
   const rec: Recorder = { inserted: [], lastSeenUpdates: [], archiveUpdates: [] }
 
   function builder(table: string) {
@@ -48,6 +51,7 @@ function fakeSupabase(existing: { url: string }[]): { client: unknown; rec: Reco
       const [first, payload] = ops[0] ?? []
       if (table === 'jobs' && first === 'select') return resolve({ data: existing })
       if (table === 'jobs' && first === 'insert') {
+        if (opts.failInsert) return resolve({ error: { message: 'column does not exist' } })
         rec.inserted.push(...(payload as Record<string, unknown>[]))
         return resolve({ error: null })
       }
@@ -82,7 +86,7 @@ describe('ingestAllSources wiring', () => {
     vi.mocked(createClient).mockReturnValue(client as never)
 
     vi.mocked(fetchRemotive).mockResolvedValue([
-      rawJob({ url: 'https://jobs/new' }),
+      rawJob({ url: 'https://jobs/new', rate_min: 31.25, rate_max: 81.5 }), // fractional source rates
       rawJob({ source_id: 'remotive-2', url: 'https://jobs/existing' }), // already known
     ])
 
@@ -98,6 +102,9 @@ describe('ingestAllSources wiring', () => {
     // rate_type defaults to hourly and duration to null when the source omits them
     expect(row.rate_type).toBe('hourly')
     expect(row.duration).toBeNull()
+    // fractional rates are rounded — the DB rate columns are int
+    expect(row.rate_min).toBe(31)
+    expect(row.rate_max).toBe(82)
 
     // Existing URL got a last_seen bump scoped to that url
     const bump = rec.lastSeenUpdates.find(ops =>
@@ -125,6 +132,19 @@ describe('ingestAllSources wiring', () => {
     const remotive = results.find(r => r.source === 'remotive')!
     expect(remotive.inserted).toBe(1)
     expect(remotive.duped).toBe(1)
+  })
+
+  it('reports insert failures as errors instead of claiming success', async () => {
+    const { client, rec } = fakeSupabase([], { failInsert: true })
+    vi.mocked(createClient).mockReturnValue(client as never)
+    vi.mocked(fetchRemotive).mockResolvedValue([rawJob()])
+
+    const results = await ingestAllSources()
+    const remotive = results.find(r => r.source === 'remotive')!
+
+    expect(rec.inserted).toHaveLength(0)
+    expect(remotive.inserted).toBe(0)
+    expect(remotive.error).toMatch(/insert failed: column does not exist/)
   })
 
   it('still runs the archive pass when no new jobs are found', async () => {

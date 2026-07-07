@@ -53,4 +53,16 @@ describe('fetchHNFreelance', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ hits: [] }) } as Response))
     expect(await fetchHNFreelance()).toEqual([])
   })
+
+  it('ignores unrelated whoishiring threads (e.g. Who is hiring?)', async () => {
+    const unrelated = { objectID: '50000', title: 'Ask HN: Who is hiring? (July 2026)', created_at: '2026-07-01T15:00:00.000Z' }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ hits: [unrelated] }) } as Response))
+    expect(await fetchHNFreelance()).toEqual([])
+  })
+
+  it('skips stale threads — HN paused the freelancer thread after October 2025', async () => {
+    const stale = { ...storyHit, title: 'Ask HN: Freelancer? Seeking freelancer? (October 2025)', created_at: '2025-10-01T15:00:00.000Z' }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ hits: [stale] }) } as Response))
+    expect(await fetchHNFreelance()).toEqual([])
+  })
 })

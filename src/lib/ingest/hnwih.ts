@@ -36,14 +36,16 @@ function tagCandidatesFromText(text: string): string[] {
 }
 
 export async function fetchHNWhoIsHiring(): Promise<RawJob[]> {
-  // Step 1: find the latest monthly "Ask HN: Who is hiring?" thread
+  // Step 1: find the latest monthly "Ask HN: Who is hiring?" thread. Must use
+  // search_by_date (newest first) — relevance search returns years-old threads.
+  // The whoishiring account posts several monthly threads, so match the title.
   const storyRes = await fetch(
-    'https://hn.algolia.com/api/v1/search?query=Ask+HN%3A+Who+is+hiring%3F&tags=story,ask_hn&hitsPerPage=1',
+    'https://hn.algolia.com/api/v1/search_by_date?tags=story,author_whoishiring&hitsPerPage=10',
     { headers: { 'User-Agent': 'aiml-freelance-hub/1.0' }, next: { revalidate: 0 } }
   )
   if (!storyRes.ok) throw new Error(`HN Algolia story fetch failed: ${storyRes.status}`)
   const storyData = await storyRes.json() as { hits: AlgoliaStoryHit[] }
-  const story = storyData.hits[0]
+  const story = storyData.hits.find(h => /who is hiring/i.test(h.title ?? ''))
   if (!story) return []
 
   // Step 2: search AI/ML comments within that thread

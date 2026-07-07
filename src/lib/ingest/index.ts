@@ -75,9 +75,11 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
       id: runId, source: name, status: 'running',
     })
 
-    const { jobs, error } = await runAdapter(name, fetcher)
+    const { jobs, error: fetchError } = await runAdapter(name, fetcher)
+    let error = fetchError
     const { toInsert: newJobs, urlsToTouch } = partitionFetchedJobs(jobs, existingUrls)
     const duped = jobs.length - newJobs.length
+    let inserted = 0
 
     // Refresh last_seen_at for jobs still present in the source feed so they
     // are not later archived as stale.
@@ -101,8 +103,9 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
           url:               j.url,
           skills:            j.skills,
           location:          j.location,
-          rate_min:          j.rate_min,
-          rate_max:          j.rate_max,
+          // rate columns are int; sources can produce fractional rates (e.g. 31.25/hr)
+          rate_min:          j.rate_min == null ? null : Math.round(j.rate_min),
+          rate_max:          j.rate_max == null ? null : Math.round(j.rate_max),
           posted_at:         j.posted_at,
           employment_type:   j.employment_type,
           rate_type:         j.rate_type ?? 'hourly',
@@ -117,22 +120,27 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
       }))
 
       const { error: insertErr } = await supabase.from('jobs').insert(rows)
-      if (insertErr) console.error(`[ingest] insert error for ${name}:`, insertErr.message)
-
-      // update known urls cache
-      newJobs.forEach(j => { if (j.url != null) existingUrls.add(j.url) })
+      if (insertErr) {
+        // Surface insert failures in the result instead of claiming success.
+        console.error(`[ingest] insert error for ${name}:`, insertErr.message)
+        error = error ?? `insert failed: ${insertErr.message}`
+      } else {
+        inserted = newJobs.length
+        // update known urls cache
+        newJobs.forEach(j => { if (j.url != null) existingUrls.add(j.url) })
+      }
     }
 
     await supabase.from('ingestion_runs').update({
       finished_at: new Date().toISOString(),
       jobs_found:  jobs.length,
-      jobs_new:    newJobs.length,
+      jobs_new:    inserted,
       jobs_duped:  duped,
       status:      error ? 'error' : 'done',
       error:       error ?? null,
     }).eq('id', runId)
 
-    results.push({ source: name, found: jobs.length, inserted: newJobs.length, duped, error })
+    results.push({ source: name, found: jobs.length, inserted, duped, error })
   }
 
   // Archive ingested jobs that have not appeared in any source feed recently —

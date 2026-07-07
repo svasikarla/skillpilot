@@ -6,11 +6,17 @@ interface WorkingNomadsJob {
   company: string
   company_logo: string | null
   category: string
-  tags: string[]
+  tags: string[] | string | null  // API sends a comma-separated string
   url: string
   pub_date: string
   description: string
   salary?: string | null
+}
+
+function normalizeTags(tags: string[] | string | null | undefined): string[] {
+  if (Array.isArray(tags)) return tags
+  if (typeof tags === 'string') return tags.split(',').map(t => t.trim()).filter(Boolean)
+  return []
 }
 
 // Parse "Remote" or "Worldwide" salary strings like "$80k - $120k" or "$60-90/hr"
@@ -38,11 +44,12 @@ export async function fetchWorkingNomads(): Promise<RawJob[]> {
   const data = await res.json() as WorkingNomadsJob[]
 
   return (data ?? [])
-    .filter(j => isAiMlJob(j.title, j.description ?? '', j.tags ?? []))
+    .filter(j => isAiMlJob(j.title, j.description ?? '', normalizeTags(j.tags)))
     .map(j => {
+      const tags = normalizeTags(j.tags)
       const { min, max } = parseSalary(j.salary)
       const cleanDesc = (j.description ?? '').replace(/<[^>]*>/g, '').slice(0, 2000)
-      const tagHint = (j.tags ?? []).find(t => /^(contract|freelance|full[- ]?time)$/i.test(t))
+      const tagHint = tags.find(t => /^(contract|freelance|full[- ]?time)$/i.test(t))
       return {
         source_id:   `workingnomads-${j.id}`,
         source:      'workingnomads',
@@ -51,7 +58,7 @@ export async function fetchWorkingNomads(): Promise<RawJob[]> {
         description: cleanDesc,
         platform:    'Working Nomads',
         url:         j.url,
-        skills:      extractSkillsFromTags(j.tags ?? []),
+        skills:      extractSkillsFromTags(tags),
         location:    'Remote',
         rate_min:    min,
         rate_max:    max,

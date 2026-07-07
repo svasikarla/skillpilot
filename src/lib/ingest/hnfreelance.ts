@@ -42,16 +42,24 @@ function tagCandidatesFromText(text: string): string[] {
   ].filter(t => lower.includes(t.replace('-', ' ')))
 }
 
+/** Threads older than this are treated as discontinued, not current inventory. */
+const MAX_THREAD_AGE_DAYS = 40
+
 export async function fetchHNFreelance(): Promise<RawJob[]> {
-  // Step 1: latest monthly "Freelancer? Seeking freelancer?" thread
+  // Step 1: latest monthly "Freelancer? Seeking freelancer?" thread. Must use
+  // search_by_date (newest first) — relevance search returns years-old threads.
+  // HN paused this thread after October 2025; the freshness guard keeps stale
+  // gigs out while letting the adapter revive automatically if it returns.
   const storyRes = await fetch(
-    'https://hn.algolia.com/api/v1/search?query=Freelancer%3F+Seeking+freelancer%3F&tags=story,ask_hn&hitsPerPage=1',
+    'https://hn.algolia.com/api/v1/search_by_date?tags=story,author_whoishiring&hitsPerPage=10',
     { headers: { 'User-Agent': 'aiml-freelance-hub/1.0' }, next: { revalidate: 0 } }
   )
   if (!storyRes.ok) throw new Error(`HN Algolia freelance story fetch failed: ${storyRes.status}`)
   const storyData = await storyRes.json() as { hits: AlgoliaStoryHit[] }
-  const story = storyData.hits[0]
+  const story = storyData.hits.find(h => /seeking freelancer/i.test(h.title ?? ''))
   if (!story) return []
+  const ageDays = (Date.now() - new Date(story.created_at).getTime()) / 86_400_000
+  if (ageDays > MAX_THREAD_AGE_DAYS) return []
 
   // Step 2: SEEKING FREELANCER comments within that thread
   const commentsRes = await fetch(
