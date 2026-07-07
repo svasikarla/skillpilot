@@ -15,6 +15,7 @@ type Job = {
   id: string; title: string; company: string | null; description: string | null
   platform: string; url: string | null; skills: string[]; location: string
   rate_min: number | null; rate_max: number | null; posted_at: string
+  rate_type?: 'hourly' | 'fixed'; duration?: string | null
   employment_type?: 'contract' | 'full_time' | 'unknown'
   reliability_score?: number; reliability_signals?: Record<string, boolean>
   match_score?: number; matched_skills?: string[]

@@ -6,11 +6,11 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
-  ExternalLink, MapPin, DollarSign, Calendar,
+  ExternalLink, MapPin, DollarSign, Calendar, Clock,
   ShieldCheck, ShieldAlert, ShieldX, Wand2, FileText,
   Sparkles, Loader2, ChevronDown, ChevronUp,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, formatRate } from '@/lib/utils'
 import { tierFromScore, tierLabel } from '@/lib/reliability'
 import ReliabilityExplainer from './ReliabilityExplainer'
 import JobDescription from './JobDescription'
@@ -19,6 +19,7 @@ type Job = {
   id: string; title: string; company: string | null; description: string | null
   platform: string; url: string | null; skills: string[]; location: string
   rate_min: number | null; rate_max: number | null; posted_at: string
+  rate_type?: 'hourly' | 'fixed'; duration?: string | null
   employment_type?: 'contract' | 'full_time' | 'unknown'
   reliability_score?: number; reliability_signals?: Record<string, boolean>
   match_score?: number; matched_skills?: string[]
@@ -116,9 +117,11 @@ export default function JobDetailSheet({
             {(job.rate_min || job.rate_max) && (
               <span className="flex items-center gap-1 font-medium text-foreground">
                 <DollarSign className="h-3 w-3 text-muted-foreground" />
-                {job.rate_min && job.rate_max ? `$${job.rate_min}–$${job.rate_max}/hr`
-                  : job.rate_min ? `From $${job.rate_min}/hr` : `Up to $${job.rate_max}/hr`}
+                {formatRate(job.rate_min, job.rate_max, job.rate_type)}
               </span>
+            )}
+            {job.duration && (
+              <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{job.duration}</span>
             )}
             <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{daysAgo(job.posted_at)}</span>
             {tier && (

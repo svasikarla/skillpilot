@@ -7,7 +7,11 @@ export interface ReliabilityResult {
 }
 
 const TIER_1_PLATFORMS = new Set(['upwork', 'toptal', 'contra', 'braintrust', 'gun.io'])
-const TIER_2_PLATFORMS = new Set(['remotive', 'remoteok', 'himalayas', 'turing', 'freelancer', 'arc.dev'])
+const TIER_2_PLATFORMS = new Set([
+  'remotive', 'remoteok', 'himalayas', 'turing', 'freelancer', 'arc.dev',
+  // Moderated monthly HN threads — postings are from real, identifiable accounts.
+  'hn who is hiring', 'hn freelance thread',
+])
 
 const SCAM_PHRASES = [
   'whatsapp', 'telegram', 'registration fee', 'training fee', 'joining fee',

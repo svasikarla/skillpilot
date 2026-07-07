@@ -5,12 +5,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
-  ExternalLink, MapPin, DollarSign, Calendar, ShieldCheck, ShieldAlert,
+  ExternalLink, MapPin, DollarSign, Calendar, Clock, ShieldCheck, ShieldAlert,
   ShieldX, Bookmark, BookmarkCheck, Wand2, ChevronDown, ChevronUp, FileText, Flag,
 } from 'lucide-react'
 import ProposalPanelInline from '@/components/apply/ProposalPanel'
 import JobDescription from '@/components/feed/JobDescription'
-import { cn } from '@/lib/utils'
+import { cn, formatRate } from '@/lib/utils'
 import { tierFromScore, tierLabel } from '@/lib/reliability'
 import { toast } from 'sonner'
 import { useSuccessState } from '@/lib/use-success-state'
@@ -20,6 +20,7 @@ type Job = {
   id: string; title: string; company: string | null; description: string | null
   platform: string; url: string | null; skills: string[]; location: string
   rate_min: number | null; rate_max: number | null; posted_at: string
+  rate_type?: 'hourly' | 'fixed'; duration?: string | null
   employment_type?: 'contract' | 'full_time' | 'unknown'
   reliability_score?: number; match_score?: number; matched_skills?: string[]
 }
@@ -127,8 +128,12 @@ export default function JobCard({
               {(job.rate_min || job.rate_max) && (
                 <span className="flex items-center gap-1 font-medium text-foreground">
                   <DollarSign className="h-3 w-3 text-muted-foreground" />
-                  {job.rate_min && job.rate_max ? `$${job.rate_min}–$${job.rate_max}/hr`
-                    : job.rate_min ? `From $${job.rate_min}/hr` : `Up to $${job.rate_max}/hr`}
+                  {formatRate(job.rate_min, job.rate_max, job.rate_type)}
+                </span>
+              )}
+              {job.duration && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />{job.duration}
                 </span>
               )}
               <span className="flex items-center gap-1">

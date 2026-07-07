@@ -17,6 +17,8 @@ vi.mock('@/lib/ingest/findwork', () => ({ fetchFindwork: vi.fn().mockResolvedVal
 vi.mock('@/lib/ingest/hnwih', () => ({ fetchHNWhoIsHiring: vi.fn().mockResolvedValue([]) }))
 vi.mock('@/lib/ingest/weworkremotely', () => ({ fetchWeWorkRemotely: vi.fn().mockResolvedValue([]) }))
 vi.mock('@/lib/ingest/workingnomads', () => ({ fetchWorkingNomads: vi.fn().mockResolvedValue([]) }))
+vi.mock('@/lib/ingest/freelancer', () => ({ fetchFreelancer: vi.fn().mockResolvedValue([]) }))
+vi.mock('@/lib/ingest/hnfreelance', () => ({ fetchHNFreelance: vi.fn().mockResolvedValue([]) }))
 
 import { ingestAllSources } from '@/lib/ingest'
 import { createClient } from '@supabase/supabase-js'
@@ -93,6 +95,9 @@ describe('ingestAllSources wiring', () => {
     const row = rec.inserted[0]
     expect(row.title).toBe('ML Engineer')
     expect(typeof row.last_seen_at).toBe('string')
+    // rate_type defaults to hourly and duration to null when the source omits them
+    expect(row.rate_type).toBe('hourly')
+    expect(row.duration).toBeNull()
 
     // Existing URL got a last_seen bump scoped to that url
     const bump = rec.lastSeenUpdates.find(ops =>

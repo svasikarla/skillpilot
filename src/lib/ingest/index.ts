@@ -6,6 +6,8 @@ import { fetchFindwork } from './findwork'
 import { fetchHNWhoIsHiring } from './hnwih'
 import { fetchWeWorkRemotely } from './weworkremotely'
 import { fetchWorkingNomads } from './workingnomads'
+import { fetchFreelancer } from './freelancer'
+import { fetchHNFreelance } from './hnfreelance'
 import { scoreReliability } from '@/lib/reliability'
 import { generateEmbedding, jobEmbeddingText } from '@/lib/embeddings'
 import { partitionFetchedJobs, staleCutoffISO } from '@/lib/job-freshness'
@@ -53,6 +55,9 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
   const existingUrls = await getExistingUrls(supabase)
 
   const adapters: Array<{ name: string; fetcher: () => Promise<RawJob[]> }> = [
+    // Project marketplaces first — these are the core freelance/gig inventory.
+    { name: 'freelancer',     fetcher: fetchFreelancer },
+    { name: 'hnfreelance',    fetcher: fetchHNFreelance },
     { name: 'remotive',       fetcher: fetchRemotive },
     { name: 'remoteok',       fetcher: fetchRemoteOK },
     { name: 'himalayas',      fetcher: fetchHimalayas },
@@ -100,6 +105,8 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
           rate_max:          j.rate_max,
           posted_at:         j.posted_at,
           employment_type:   j.employment_type,
+          rate_type:         j.rate_type ?? 'hourly',
+          duration:          j.duration ?? null,
           reliability_score: score,
           reliability_flags: flags,
           source:            j.source,

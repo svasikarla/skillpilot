@@ -155,6 +155,20 @@ describe('computeMatch – rate scoring', () => {
     const r = computeMatch({ ...base, hourlyRate: 80, jobRateMin: null, jobRateMax: 100 })
     expect(r.rateScore).toBe(100)
   })
+
+  it('stays neutral for fixed-budget projects (total budget ≠ hourly rate)', () => {
+    // A $500 fixed budget must not be read as $500/hr…
+    const high = computeMatch({ ...base, hourlyRate: 100, jobRateMin: 500, jobRateMax: 1500, jobRateType: 'fixed' })
+    expect(high.rateScore).toBe(50)
+    // …nor a $50 budget as an insultingly low hourly rate.
+    const low = computeMatch({ ...base, hourlyRate: 100, jobRateMin: 30, jobRateMax: 50, jobRateType: 'fixed' })
+    expect(low.rateScore).toBe(50)
+  })
+
+  it('scores hourly listings normally when jobRateType is explicitly hourly', () => {
+    const r = computeMatch({ ...base, hourlyRate: 100, jobRateMin: 100, jobRateMax: 120, jobRateType: 'hourly' })
+    expect(r.rateScore).toBe(100)
+  })
 })
 
 // ── Recency scoring ──────────────────────────────────────────────────────────

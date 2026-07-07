@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from('jobs')
-    .select('id, title, company, description, platform, url, skills, location, rate_min, rate_max, posted_at, reliability_score, reliability_flags, employment_type, embedding')
+    .select('id, title, company, description, platform, url, skills, location, rate_min, rate_max, rate_type, duration, posted_at, reliability_score, reliability_flags, employment_type, embedding')
     .order('posted_at', { ascending: false })
     .limit(150)
 
@@ -66,6 +66,9 @@ export async function GET(request: Request) {
   if (skill)    query = query.contains('skills', [skill])
   if (platform) query = query.eq('platform', platform)
   if (verified) query = query.gte('reliability_score', 70)
+  // Hourly-rate filters only make sense against hourly listings; a $500 fixed
+  // budget is not "$500/hr", so fixed-budget projects are excluded when set.
+  if (rateMin || rateMax) query = query.eq('rate_type', 'hourly')
   if (rateMin)  query = query.gte('rate_min', rateMin)
   if (rateMax)  query = query.lte('rate_max', rateMax)
   // Apply a recency cutoff. Defaults to DEFAULT_FEED_RECENCY_DAYS so stale
@@ -92,6 +95,7 @@ export async function GET(request: Request) {
       jobSkills:   job.skills ?? [],
       jobRateMin:  job.rate_min,
       jobRateMax:  job.rate_max,
+      jobRateType: job.rate_type ?? 'hourly',
       jobPostedAt: job.posted_at,
       semanticScore,
     })
@@ -114,7 +118,19 @@ export async function GET(request: Request) {
   if (matchMin !== null) filtered = filtered.filter(j => j.match_score >= matchMin)
   if (nearMiss)          filtered = filtered.filter(j => j.match_score >= 45 && j.match_score < 70)
 
-  filtered.sort((a, b) => b.match_score - a.match_score)
+  // In the contract view, confirmed contract/freelance listings outrank
+  // 'unknown' ones (which are included as a fallback but are often full-time
+  // roles the classifier couldn't label). Match score breaks ties.
+  if (typeParam === 'contract') {
+    filtered.sort((a, b) => {
+      const aConfirmed = a.employment_type === 'contract' ? 1 : 0
+      const bConfirmed = b.employment_type === 'contract' ? 1 : 0
+      if (aConfirmed !== bConfirmed) return bConfirmed - aConfirmed
+      return b.match_score - a.match_score
+    })
+  } else {
+    filtered.sort((a, b) => b.match_score - a.match_score)
+  }
 
   return NextResponse.json({ jobs: filtered.slice(0, 50) })
 }

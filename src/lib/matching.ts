@@ -21,10 +21,11 @@ export function computeMatch(params: {
   jobSkills: string[]
   jobRateMin: number | null
   jobRateMax: number | null
+  jobRateType?: 'hourly' | 'fixed'  // fixed budgets aren't comparable to an hourly target
   jobPostedAt: string
   semanticScore?: number  // 0-100 cosine similarity scaled score (optional)
 }): MatchResult {
-  const { userSkills, skillRatings, hourlyRate, jobSkills, jobRateMin, jobRateMax, jobPostedAt } = params
+  const { userSkills, skillRatings, hourlyRate, jobSkills, jobRateMin, jobRateMax, jobRateType, jobPostedAt } = params
 
   const userSkillsLower = new Set(userSkills.map(s => s.toLowerCase()))
 
@@ -58,8 +59,8 @@ export function computeMatch(params: {
   const skillScore = Math.round(rawSkillScore * 100)
 
   // ── Rate Score ───────────────────────────────────────────────────────────────
-  let rateScore = 50 // neutral when no rate data
-  if (hourlyRate && (jobRateMin || jobRateMax)) {
+  let rateScore = 50 // neutral when no rate data, or when budget is a fixed total
+  if (jobRateType !== 'fixed' && hourlyRate && (jobRateMin || jobRateMax)) {
     const jobMin = jobRateMin ?? jobRateMax ?? 0
     const jobMax = jobRateMax ?? jobRateMin ?? 0
     const jobMid = (jobMin + jobMax) / 2 || jobMin
