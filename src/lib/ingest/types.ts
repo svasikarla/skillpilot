@@ -62,6 +62,7 @@ export const AI_ML_KEYWORDS = [
   'llm', 'large language model', 'gpt', 'claude', 'gemini', 'mistral',
   'nlp', 'natural language', 'computer vision', 'cv engineer',
   'data scientist', 'ai engineer', 'artificial intelligence',
+  'ai', 'chatbot', 'prompt engineer', 'ai agent',
   'pytorch', 'tensorflow', 'hugging face', 'transformers',
   'rag', 'retrieval augmented', 'vector search', 'embeddings',
   'mlops', 'llmops', 'model deployment', 'model training',
@@ -71,9 +72,28 @@ export const AI_ML_KEYWORDS = [
   'generative ai', 'gen ai', 'diffusion model', 'stable diffusion',
 ]
 
+// Word-boundary matchers, precomputed once. Substring matching caused false
+// positives like 'storage' → 'rag' and 'scv engineer' → 'cv engineer'.
+const KEYWORD_RES = AI_ML_KEYWORDS.map(kw => ({
+  kw,
+  re: new RegExp(`(^|[^a-z0-9])${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-z0-9])`, 'i'),
+}))
+
+function keywordHits(text: string): number {
+  let hits = 0
+  for (const { re } of KEYWORD_RES) if (re.test(text)) hits++
+  return hits
+}
+
+/**
+ * A listing counts as AI/ML when the signal is in the title or tags, or when
+ * the description mentions at least two distinct AI/ML terms. One passing
+ * mention buried in company boilerplate ("we use machine learning") is not
+ * enough — that let travel-agent and sales roles into the feed.
+ */
 export function isAiMlJob(title: string, description: string, tags: string[]): boolean {
-  const text = `${title} ${description} ${tags.join(' ')}`.toLowerCase()
-  return AI_ML_KEYWORDS.some(kw => text.includes(kw))
+  if (keywordHits(`${title} ${tags.join(' ')}`) >= 1) return true
+  return keywordHits(description) >= 2
 }
 
 // Job tags → canonical taxonomy skill names, so job skills, user profile
