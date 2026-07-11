@@ -58,6 +58,7 @@ export default function FeedContent({ userSkills }: { userSkills: string[] }) {
 
   const [platformFilter, setPlatformFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState<EmploymentFilter>('contract')
+  const [includeUnknown, setIncludeUnknown] = useState(false)
   const [detailJob, setDetailJob]           = useState<Job | null>(null)
   const [proposalJobId, setProposalJobId]   = useState<string | null>(null)
   const initialised = useRef(false)
@@ -85,12 +86,13 @@ export default function FeedContent({ userSkills }: { userSkills: string[] }) {
     if (matchFilter === 'near_miss') { params.set('near_miss', '1') }
     else if (matchFilter)         params.set('match_min', matchFilter)
     params.set('employment_type', typeFilter)
+    if (typeFilter === 'contract' && includeUnknown) params.set('include_unknown', '1')
 
     const res  = await fetch(`/api/jobs?${params}`)
     const data = await res.json()
     setJobs(data.jobs ?? [])
     setLoading(false)
-  }, [query, activeSkill, verifiedOnly, showHidden, daysFilter, rateMin, rateMax, matchFilter, platformFilter, typeFilter])
+  }, [query, activeSkill, verifiedOnly, showHidden, daysFilter, rateMin, rateMax, matchFilter, platformFilter, typeFilter, includeUnknown])
 
   useEffect(() => {
     const id = setTimeout(fetchJobs, 280)
@@ -136,21 +138,34 @@ export default function FeedContent({ userSkills }: { userSkills: string[] }) {
       </div>
 
       {/* Employment-type segmented control */}
-      <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg w-fit">
-        {TYPE_OPTIONS.map(opt => (
-          <button
-            key={opt.value}
-            onClick={() => setTypeFilter(opt.value)}
-            className={cn(
-              'text-xs font-medium px-3 py-1.5 rounded-md transition-colors',
-              typeFilter === opt.value
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg w-fit">
+          {TYPE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setTypeFilter(opt.value)}
+              className={cn(
+                'text-xs font-medium px-3 py-1.5 rounded-md transition-colors',
+                typeFilter === opt.value
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {typeFilter === 'contract' && (
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 accent-primary"
+              checked={includeUnknown}
+              onChange={e => setIncludeUnknown(e.target.checked)}
+            />
+            Include unclassified listings
+          </label>
+        )}
       </div>
 
       {/* Platform filter badge (set from URL) */}

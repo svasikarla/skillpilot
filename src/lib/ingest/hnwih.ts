@@ -10,6 +10,7 @@ interface AlgoliaCommentHit {
   objectID: string
   comment_text: string | null
   created_at: string
+  parent_id?: number | null
 }
 
 // HN "Who Is Hiring" comments use a rough pipe-delimited first-line format:
@@ -48,16 +49,27 @@ export async function fetchHNWhoIsHiring(): Promise<RawJob[]> {
   const story = storyData.hits.find(h => /who is hiring/i.test(h.title ?? ''))
   if (!story) return []
 
-  // Step 2: search AI/ML comments within that thread
-  const commentsRes = await fetch(
-    `https://hn.algolia.com/api/v1/search_by_date?tags=comment,story_${story.objectID}&query=machine+learning+LLM+AI+engineer&hitsPerPage=100`,
-    { headers: { 'User-Agent': 'aiml-freelance-hub/1.0' }, next: { revalidate: 0 } }
-  )
-  if (!commentsRes.ok) throw new Error(`HN Algolia comments fetch failed: ${commentsRes.status}`)
-  const commentsData = await commentsRes.json() as { hits: AlgoliaCommentHit[] }
+  // Step 2: page through every comment in the thread and filter locally with
+  // isAiMlJob. A keyword query here ANDs its terms, which returned only a
+  // handful of the thread's hundreds of AI/ML postings.
+  const storyId = Number(story.objectID)
+  const hits: AlgoliaCommentHit[] = []
+  const MAX_PAGES = 3 // hitsPerPage=1000 → up to 3000 comments, beyond any monthly thread
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const commentsRes = await fetch(
+      `https://hn.algolia.com/api/v1/search_by_date?tags=comment,story_${story.objectID}&hitsPerPage=1000&page=${page}`,
+      { headers: { 'User-Agent': 'aiml-freelance-hub/1.0' }, next: { revalidate: 0 } }
+    )
+    if (!commentsRes.ok) throw new Error(`HN Algolia comments fetch failed: ${commentsRes.status}`)
+    const commentsData = await commentsRes.json() as { hits: AlgoliaCommentHit[]; nbPages: number }
+    hits.push(...commentsData.hits)
+    if (page >= commentsData.nbPages - 1) break
+  }
 
-  return commentsData.hits
-    .filter(h => h.comment_text && isAiMlJob('', h.comment_text, []))
+  return hits
+    // Job posts are top-level comments; replies are discussion, not listings.
+    .filter(h => (h.parent_id == null || h.parent_id === storyId)
+      && h.comment_text && isAiMlJob('', h.comment_text, []))
     .map(h => {
       const text = (h.comment_text ?? '').replace(/<[^>]*>/g, '').slice(0, 2000)
       const { title, company, location } = parseComment(text)

@@ -88,6 +88,35 @@ describe('scoreReliability', () => {
     expect(withoutCompany.flags).toContain('No company name')
   })
 
+  it('does not penalise anonymous clients on marketplace platforms', () => {
+    const marketplace = scoreReliability({
+      title: 'ML Engineer', description: 'Good job.', platform: 'Freelancer',
+      rate_min: null, rate_max: null, company: null, url: null,
+    })
+    expect(marketplace.flags).not.toContain('No company name')
+  })
+
+  it('treats Working Nomads as a Tier 2 platform', () => {
+    const result = scoreReliability({
+      title: 'ML Engineer', description: longDesc(), platform: 'Working Nomads',
+      rate_min: null, rate_max: null, company: 'Acme', url: null,
+    })
+    expect(result.flags).toContain('Tier 2 platform')
+  })
+
+  it('marks jobs suspect only when scam phrases are present', () => {
+    const clean = scoreReliability({
+      title: 'ML Engineer', description: longDesc(), platform: 'unknown',
+      rate_min: null, rate_max: null, company: 'Acme', url: null,
+    })
+    const scam = scoreReliability({
+      title: 'ML Engineer', description: 'Contact us on whatsapp to start.'.padEnd(85, ' '),
+      platform: 'unknown', rate_min: null, rate_max: null, company: 'Acme', url: null,
+    })
+    expect(clean.suspect).toBe(false)
+    expect(scam.suspect).toBe(true)
+  })
+
   it('penalises jobs with short description (<80 chars)', () => {
     const result = scoreReliability({
       title: 'ML Job',

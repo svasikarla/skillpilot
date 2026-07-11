@@ -21,6 +21,17 @@ describe('partitionFetchedJobs', () => {
     expect(urlsToTouch).toEqual(['https://a.com/1'])
   })
 
+  it('inserts a URL repeated within the same batch only once', () => {
+    const fetched = [
+      { url: 'https://a.com/1', n: 'first' },
+      { url: 'https://a.com/1', n: 'dupe' },
+      { url: 'https://a.com/2', n: 'other' },
+    ]
+    const { toInsert, urlsToTouch } = partitionFetchedJobs(fetched, new Set<string>())
+    expect(toInsert.map(j => j.n)).toEqual(['first', 'other'])
+    expect(urlsToTouch).toHaveLength(0)
+  })
+
   it('always inserts URL-less jobs (cannot be deduped)', () => {
     const { toInsert, urlsToTouch } = partitionFetchedJobs(
       [{ url: null }, { url: null }],

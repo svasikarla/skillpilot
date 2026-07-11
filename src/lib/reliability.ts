@@ -4,14 +4,20 @@ export interface ReliabilityResult {
   score: number       // 0-100
   tier: 'green' | 'amber' | 'red'
   flags: string[]     // human-readable signals found
+  suspect: boolean    // true when actual scam phrases were found
 }
 
 const TIER_1_PLATFORMS = new Set(['upwork', 'toptal', 'contra', 'braintrust', 'gun.io'])
 const TIER_2_PLATFORMS = new Set([
   'remotive', 'remoteok', 'himalayas', 'turing', 'freelancer', 'arc.dev',
+  'findwork', 'we work remotely', 'working nomads',
   // Moderated monthly HN threads — postings are from real, identifiable accounts.
   'hn who is hiring', 'hn freelance thread',
 ])
+
+// Marketplace/thread listings where the client stays anonymous until contact —
+// a missing company name there is normal, not a trust signal.
+const ANONYMOUS_CLIENT_PLATFORMS = new Set(['freelancer', 'hn freelance thread'])
 
 const SCAM_PHRASES = [
   'whatsapp', 'telegram', 'registration fee', 'training fee', 'joining fee',
@@ -77,7 +83,7 @@ export function scoreReliability(job: Pick<RawJob, 'title' | 'description' | 'pl
     flags.push('Too short description')
   }
 
-  if (!job.company) {
+  if (!job.company && !ANONYMOUS_CLIENT_PLATFORMS.has(platformLower)) {
     score -= 8
     flags.push('No company name')
   }
@@ -94,6 +100,7 @@ export function scoreReliability(job: Pick<RawJob, 'title' | 'description' | 'pl
     score: clampedScore,
     tier: clampedScore >= 70 ? 'green' : clampedScore >= 40 ? 'amber' : 'red',
     flags,
+    suspect: foundScam.length > 0,
   }
 }
 

@@ -25,7 +25,9 @@ export interface FetchedRef {
 /**
  * Split freshly fetched jobs into the new ones (to insert) and the URLs of those
  * that already exist (to bump `last_seen_at`). URL-less jobs are always treated
- * as new since they can't be deduped. URLs in `urlsToTouch` are de-duplicated.
+ * as new since they can't be deduped. Repeated URLs within the same fetch batch
+ * (sources do return duplicates) insert only once. URLs in `urlsToTouch` are
+ * de-duplicated.
  */
 export function partitionFetchedJobs<T extends FetchedRef>(
   fetched: T[],
@@ -33,11 +35,13 @@ export function partitionFetchedJobs<T extends FetchedRef>(
 ): { toInsert: T[]; urlsToTouch: string[] } {
   const toInsert: T[] = []
   const touch = new Set<string>()
+  const seenInBatch = new Set<string>()
   for (const job of fetched) {
-    if (job.url == null || !existingUrls.has(job.url)) {
-      toInsert.push(job)
-    } else {
+    if (job.url != null && existingUrls.has(job.url)) {
       touch.add(job.url)
+    } else if (job.url == null || !seenInBatch.has(job.url)) {
+      if (job.url != null) seenInBatch.add(job.url)
+      toInsert.push(job)
     }
   }
   return { toInsert, urlsToTouch: [...touch] }

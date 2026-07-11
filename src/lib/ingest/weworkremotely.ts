@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser'
-import { RawJob, EmploymentType, isAiMlJob, extractSkillsFromTags, inferEmploymentType } from './types'
+import { RawJob, isAiMlJob, extractSkillsFromTags, inferEmploymentType } from './types'
 
 interface WWRItem {
   title: string
@@ -35,7 +35,7 @@ function tagCandidatesFromText(text: string): string[] {
   ].filter(t => lower.includes(t.replace('-', ' ')))
 }
 
-async function fetchFeed(url: string, forcedType: EmploymentType | null): Promise<RawJob[]> {
+async function fetchFeed(url: string): Promise<RawJob[]> {
   const res = await fetch(url, {
     headers: { 'User-Agent': 'aiml-freelance-hub/1.0' },
     next: { revalidate: 0 },
@@ -72,16 +72,18 @@ async function fetchFeed(url: string, forcedType: EmploymentType | null): Promis
         rate_min:    null,
         rate_max:    null,
         posted_at:   j.pubDate ? new Date(j.pubDate).toISOString() : new Date().toISOString(),
-        employment_type: forcedType ?? inferEmploymentType(title, desc),
+        employment_type: inferEmploymentType(title, desc),
       } satisfies RawJob
     })
 }
 
 export async function fetchWeWorkRemotely(): Promise<RawJob[]> {
-  const [programming, contracts] = await Promise.all([
-    fetchFeed('https://weworkremotely.com/categories/remote-programming-jobs.rss', null),
-    fetchFeed('https://weworkremotely.com/categories/remote-contract-jobs.rss', 'contract').catch(err => {
-      console.warn('[ingest] WWR contracts feed failed:', err)
+  // WWR removed its remote-contract-jobs category (the old RSS now 301s with no
+  // Location header), so contract listings only appear in the site-wide feed.
+  const [programming, allJobs] = await Promise.all([
+    fetchFeed('https://weworkremotely.com/categories/remote-programming-jobs.rss'),
+    fetchFeed('https://weworkremotely.com/remote-jobs.rss').catch(err => {
+      console.warn('[ingest] WWR all-jobs feed failed:', err)
       return []
     }),
   ])
@@ -89,7 +91,7 @@ export async function fetchWeWorkRemotely(): Promise<RawJob[]> {
   // Dedup by source_id (a job can appear in both feeds)
   const seen = new Set<string>()
   const merged: RawJob[] = []
-  for (const job of [...contracts, ...programming]) {
+  for (const job of [...programming, ...allJobs]) {
     if (seen.has(job.source_id)) continue
     seen.add(job.source_id)
     merged.push(job)

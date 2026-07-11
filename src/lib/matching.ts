@@ -82,9 +82,16 @@ export function computeMatch(params: {
   // ── Weighted Final ───────────────────────────────────────────────────────────
   const hasSemantic = typeof params.semanticScore === 'number'
   const semanticScore = hasSemantic ? Math.round(params.semanticScore!) : 0
+  // A job with no extracted skills is "fit unknown", not "no fit" — marketplace
+  // gigs often lose every tag in canonicalization, and a hard skillScore of 0
+  // permanently buried the truest freelance inventory. Fall back to the
+  // semantic score as the fit signal, or a neutral prior without embeddings.
+  const fitScore = jobSkills.length === 0
+    ? (hasSemantic ? semanticScore : 50)
+    : skillScore
   const raw = hasSemantic
-    ? skillScore * 0.50 + rateScore * 0.15 + recencyScore * 0.15 + semanticScore * 0.20
-    : skillScore * 0.60 + rateScore * 0.20 + recencyScore * 0.20
+    ? fitScore * 0.50 + rateScore * 0.15 + recencyScore * 0.15 + semanticScore * 0.20
+    : fitScore * 0.60 + rateScore * 0.20 + recencyScore * 0.20
   const score = isCapped ? Math.min(55, Math.round(raw)) : Math.round(raw)
 
   return { score, skillScore, rateScore, recencyScore, semanticScore, matchedSkills, missingSkills, isCapped }

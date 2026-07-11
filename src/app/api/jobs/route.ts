@@ -19,6 +19,10 @@ export async function GET(request: Request) {
   const showHidden  = searchParams.get('show_hidden') === '1'
   // employment_type=contract | full_time | all  (default: contract)
   const typeParam   = searchParams.get('employment_type')?.trim() ?? 'contract'
+  // In the contract view, 'unknown'-type listings are opt-in: they are mostly
+  // full-time roles the classifier couldn't label, and showing them by default
+  // filled the freelance feed with non-gig noise.
+  const includeUnknown = searchParams.get('include_unknown') === '1'
 
   const supabase = await createClient()
 
@@ -50,10 +54,11 @@ export async function GET(request: Request) {
     .order('posted_at', { ascending: false })
     .limit(150)
 
-  // Employment-type filter — default to contract (includes 'unknown' since those
-  // may well be contract roles we couldn't confidently classify).
+  // Employment-type filter — default to confirmed contract listings only.
   if (typeParam === 'contract') {
-    query = query.in('employment_type', ['contract', 'unknown'])
+    query = includeUnknown
+      ? query.in('employment_type', ['contract', 'unknown'])
+      : query.eq('employment_type', 'contract')
   } else if (typeParam === 'full_time') {
     query = query.eq('employment_type', 'full_time')
   } // 'all' → no filter

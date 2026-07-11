@@ -91,7 +91,7 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
 
     if (newJobs.length > 0) {
       const rows = await Promise.all(newJobs.map(async j => {
-        const { score, flags } = scoreReliability(j)
+        const { score, flags, suspect } = scoreReliability(j)
         const embedding = await generateEmbedding(
           jobEmbeddingText({ title: j.title, skills: j.skills ?? [], description: j.description ?? '' })
         ).catch(() => null)
@@ -113,7 +113,10 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
           reliability_score: score,
           reliability_flags: flags,
           source:            j.source,
-          status:            score >= 60 ? 'approved' : 'pending',
+          // Hide only listings with actual scam signals or a red-tier score.
+          // Gating on score >= 60 hid entire legitimate sources whose platform
+          // just wasn't in the tier lists.
+          status:            suspect || score < 40 ? 'pending' : 'approved',
           last_seen_at:      new Date().toISOString(),
           ...(embedding ? { embedding: JSON.stringify(embedding) } : {}),
         }

@@ -111,6 +111,29 @@ describe('computeMatch – skill scoring', () => {
   })
 })
 
+// ── Fit-unknown fallback (job lists no skills) ───────────────────────────────
+
+describe('computeMatch – jobs with no extracted skills', () => {
+  it('uses a neutral fit prior instead of skillScore 0 (no semantic)', () => {
+    // fit=50, rate=50 (neutral), recency=100 → 50*0.6 + 50*0.2 + 100*0.2 = 60
+    const r = computeMatch(base)
+    expect(r.skillScore).toBe(0)
+    expect(r.score).toBe(60)
+  })
+
+  it('uses the semantic score as the fit signal when available', () => {
+    // fit=semantic=80 → 80*0.5 + 50*0.15 + 100*0.15 + 80*0.2 = 78.5 → 79
+    const r = computeMatch({ ...base, semanticScore: 80 })
+    expect(r.score).toBe(79)
+  })
+
+  it('still uses real skillScore when the job lists skills', () => {
+    // skillScore 0 with listed skills is a genuine mismatch, not fit-unknown
+    const r = computeMatch({ ...base, jobSkills: ['Python', 'ML'] })
+    expect(r.score).toBe(30) // 0*0.6 + 50*0.2 + 100*0.2
+  })
+})
+
 // ── Rate scoring ─────────────────────────────────────────────────────────────
 
 describe('computeMatch – rate scoring', () => {
@@ -236,11 +259,11 @@ describe('computeMatch – semantic scoring', () => {
   })
 
   it('rounds the supplied semanticScore', () => {
-    // skill=0, rate=50 (no rate), recency=100 (now), semantic=79.6→80
-    // raw = 0*0.5 + 50*0.15 + 100*0.15 + 80*0.20 = 7.5 + 15 + 16 = 38.5 → 39
+    // Job lists no skills → fit falls back to semantic (79.6→80).
+    // raw = 80*0.5 + 50*0.15 + 100*0.15 + 80*0.20 = 40 + 7.5 + 15 + 16 = 78.5 → 79
     const r = computeMatch({ ...base, semanticScore: 79.6 })
     expect(r.semanticScore).toBe(80)
-    expect(r.score).toBe(39)
+    expect(r.score).toBe(79)
   })
 
   it('applies semantic weights: skill 50%, rate 15%, recency 15%, semantic 20%', () => {
