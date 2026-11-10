@@ -13,11 +13,13 @@ const TIER_2_PLATFORMS = new Set([
   'findwork', 'we work remotely', 'working nomads',
   // Moderated monthly HN threads — postings are from real, identifiable accounts.
   'hn who is hiring', 'hn freelance thread',
+  // Moderated subreddit with posting rules and mod removal of scams.
+  'reddit r/forhire',
 ])
 
 // Marketplace/thread listings where the client stays anonymous until contact —
 // a missing company name there is normal, not a trust signal.
-const ANONYMOUS_CLIENT_PLATFORMS = new Set(['freelancer', 'hn freelance thread'])
+const ANONYMOUS_CLIENT_PLATFORMS = new Set(['freelancer', 'hn freelance thread', 'reddit r/forhire'])
 
 const SCAM_PHRASES = [
   'whatsapp', 'telegram', 'registration fee', 'training fee', 'joining fee',

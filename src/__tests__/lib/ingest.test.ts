@@ -19,6 +19,7 @@ vi.mock('@/lib/ingest/weworkremotely', () => ({ fetchWeWorkRemotely: vi.fn().moc
 vi.mock('@/lib/ingest/workingnomads', () => ({ fetchWorkingNomads: vi.fn().mockResolvedValue([]) }))
 vi.mock('@/lib/ingest/freelancer', () => ({ fetchFreelancer: vi.fn().mockResolvedValue([]) }))
 vi.mock('@/lib/ingest/hnfreelance', () => ({ fetchHNFreelance: vi.fn().mockResolvedValue([]) }))
+vi.mock('@/lib/ingest/reddit-forhire', () => ({ fetchRedditForhire: vi.fn().mockResolvedValue([]) }))
 
 import { ingestAllSources } from '@/lib/ingest'
 import { createClient } from '@supabase/supabase-js'

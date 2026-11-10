@@ -8,6 +8,7 @@ import { fetchWeWorkRemotely } from './weworkremotely'
 import { fetchWorkingNomads } from './workingnomads'
 import { fetchFreelancer } from './freelancer'
 import { fetchHNFreelance } from './hnfreelance'
+import { fetchRedditForhire } from './reddit-forhire'
 import { scoreReliability } from '@/lib/reliability'
 import { generateEmbedding, jobEmbeddingText } from '@/lib/embeddings'
 import { partitionFetchedJobs, staleCutoffISO } from '@/lib/job-freshness'
@@ -57,6 +58,7 @@ export async function ingestAllSources(): Promise<IngestResult[]> {
   const adapters: Array<{ name: string; fetcher: () => Promise<RawJob[]> }> = [
     // Project marketplaces first — these are the core freelance/gig inventory.
     { name: 'freelancer',     fetcher: fetchFreelancer },
+    { name: 'reddit-forhire', fetcher: fetchRedditForhire },
     { name: 'hnfreelance',    fetcher: fetchHNFreelance },
     { name: 'remotive',       fetcher: fetchRemotive },
     { name: 'remoteok',       fetcher: fetchRemoteOK },
