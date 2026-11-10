@@ -89,4 +89,21 @@ describe('fetchFreelancer', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 } as Response))
     await expect(fetchFreelancer()).rejects.toThrow('Freelancer fetch failed: 503')
   })
+
+  it('fans out over multiple search queries and dedupes projects by id', async () => {
+    const jobs = await fetchFreelancer()
+    const fetchMock = vi.mocked(fetch)
+
+    // One request per search term, each with its own query param
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(1)
+    const queries = fetchMock.mock.calls.map(([url]) =>
+      new URL(String(url)).searchParams.get('query'))
+    expect(new Set(queries).size).toBe(queries.length)
+    expect(queries).toContain('machine learning')
+    expect(queries).toContain('chatbot')
+
+    // Every page returned the same 3 projects; dedupe keeps each AI/ML one once
+    expect(jobs.filter(j => j.source_id === 'freelancer-111')).toHaveLength(1)
+    expect(jobs.filter(j => j.source_id === 'freelancer-222')).toHaveLength(1)
+  })
 })

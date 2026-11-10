@@ -45,10 +45,24 @@ function commitment(project: FreelancerProject): string | null {
   return `${c.hours} hrs/${c.interval}`
 }
 
-export async function fetchFreelancer(): Promise<RawJob[]> {
+// A single combined query ("machine learning AI LLM") full-text matches too
+// narrowly and misses most of the marketplace's AI/ML inventory. Fan out over
+// the vocabulary clients actually post with, then dedupe by project id.
+const SEARCH_QUERIES = [
+  'machine learning',
+  'artificial intelligence',
+  'LLM',
+  'chatbot',
+  'computer vision',
+  'data science',
+  'deep learning',
+  'generative ai',
+]
+
+async function fetchQuery(searchQuery: string): Promise<FreelancerProject[]> {
   const params = new URLSearchParams({
-    query: 'machine learning AI LLM',
-    limit: '100',
+    query: searchQuery,
+    limit: '50',
     full_description: 'true',
     job_details: 'true',
     compact: 'true',
@@ -59,8 +73,21 @@ export async function fetchFreelancer(): Promise<RawJob[]> {
   )
   if (!res.ok) throw new Error(`Freelancer fetch failed: ${res.status}`)
   const data = await res.json() as FreelancerResponse
+  return data.result?.projects ?? []
+}
 
-  return (data.result?.projects ?? [])
+export async function fetchFreelancer(): Promise<RawJob[]> {
+  const pages = await Promise.all(SEARCH_QUERIES.map(fetchQuery))
+
+  const seen = new Set<number>()
+  const projects: FreelancerProject[] = []
+  for (const p of pages.flat()) {
+    if (!p.id || seen.has(p.id)) continue
+    seen.add(p.id)
+    projects.push(p)
+  }
+
+  return projects
     .filter(p => p.id && p.title)
     .filter(p => isAiMlJob(p.title, p.description ?? p.preview_description ?? '', skillTags(p)))
     .map(p => {

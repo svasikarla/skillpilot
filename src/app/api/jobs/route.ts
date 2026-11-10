@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { computeMatch } from '@/lib/matching'
 import { prepareUserSkills } from '@/lib/skills-canonical'
+import { parseSearchTerms, termToOrClause } from '@/lib/job-search'
 import { cosineSimilarity } from '@/lib/embeddings'
 import { feedRecencySinceISO, DEFAULT_FEED_RECENCY_DAYS } from '@/lib/job-freshness'
 
@@ -54,6 +55,29 @@ export async function GET(request: Request) {
     .order('posted_at', { ascending: false })
     .limit(150)
 
+  // Filters shared by the main query and the hidden-unclassified count query.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const applyCommonFilters = <T extends { or: any; contains: any; eq: any; gte: any; lte: any }>(qb: T): T => {
+    let b = qb
+    // Multi-term search: every term must match, where a term matches the text
+    // columns or (via the canonical vocabulary) the skills array.
+    for (const term of parseSearchTerms(q)) b = b.or(termToOrClause(term))
+    if (skill)    b = b.contains('skills', [skill])
+    if (platform) b = b.eq('platform', platform)
+    if (verified) b = b.gte('reliability_score', 70)
+    // Hourly-rate filters only make sense against hourly listings; a $500 fixed
+    // budget is not "$500/hr", so fixed-budget projects are excluded when set.
+    if (rateMin || rateMax) b = b.eq('rate_type', 'hourly')
+    if (rateMin)  b = b.gte('rate_min', rateMin)
+    if (rateMax)  b = b.lte('rate_max', rateMax)
+    // Apply a recency cutoff. Defaults to DEFAULT_FEED_RECENCY_DAYS so stale
+    // listings are hidden even when the caller doesn't pass `days`; admins viewing
+    // hidden listings get no default cutoff (they can still pass `days` explicitly).
+    const since = feedRecencySinceISO(days, new Date(), showHidden ? 0 : DEFAULT_FEED_RECENCY_DAYS)
+    if (since) b = b.gte('posted_at', since)
+    return b
+  }
+
   // Employment-type filter — default to confirmed contract listings only.
   if (typeParam === 'contract') {
     query = includeUnknown
@@ -70,22 +94,22 @@ export async function GET(request: Request) {
     query = query.eq('status', 'approved')
   }
 
-  if (q)        query = query.or(`title.ilike.%${q}%,company.ilike.%${q}%,description.ilike.%${q}%`)
-  if (skill)    query = query.contains('skills', [skill])
-  if (platform) query = query.eq('platform', platform)
-  if (verified) query = query.gte('reliability_score', 70)
-  // Hourly-rate filters only make sense against hourly listings; a $500 fixed
-  // budget is not "$500/hr", so fixed-budget projects are excluded when set.
-  if (rateMin || rateMax) query = query.eq('rate_type', 'hourly')
-  if (rateMin)  query = query.gte('rate_min', rateMin)
-  if (rateMax)  query = query.lte('rate_max', rateMax)
-  // Apply a recency cutoff. Defaults to DEFAULT_FEED_RECENCY_DAYS so stale
-  // listings are hidden even when the caller doesn't pass `days`; admins viewing
-  // hidden listings get no default cutoff (they can still pass `days` explicitly).
-  const since = feedRecencySinceISO(days, new Date(), showHidden ? 0 : DEFAULT_FEED_RECENCY_DAYS)
-  if (since) query = query.gte('posted_at', since)
+  query = applyCommonFilters(query)
 
-  const { data, error } = await query
+  // When the contract view hides unclassified listings, count what's hidden so
+  // the UI can offer a one-click reveal instead of looking simply empty.
+  const unclassifiedCountPromise: PromiseLike<number> =
+    typeParam === 'contract' && !includeUnknown
+      ? applyCommonFilters(
+          supabase
+            .from('jobs')
+            .select('id', { count: 'exact', head: true })
+            .eq('employment_type', 'unknown')
+            .eq('status', 'approved')
+        ).then(({ count }: { count: number | null }) => count ?? 0)
+      : Promise.resolve(0)
+
+  const [{ data, error }, unclassifiedCount] = await Promise.all([query, unclassifiedCountPromise])
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const jobs = (data ?? []).map(job => {
@@ -140,5 +164,5 @@ export async function GET(request: Request) {
     filtered.sort((a, b) => b.match_score - a.match_score)
   }
 
-  return NextResponse.json({ jobs: filtered.slice(0, 50) })
+  return NextResponse.json({ jobs: filtered.slice(0, 50), unclassified_count: unclassifiedCount })
 }

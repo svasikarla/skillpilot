@@ -59,6 +59,7 @@ export default function FeedContent({ userSkills }: { userSkills: string[] }) {
   const [platformFilter, setPlatformFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState<EmploymentFilter>('contract')
   const [includeUnknown, setIncludeUnknown] = useState(false)
+  const [unclassifiedCount, setUnclassifiedCount] = useState(0)
   const [detailJob, setDetailJob]           = useState<Job | null>(null)
   const [proposalJobId, setProposalJobId]   = useState<string | null>(null)
   const initialised = useRef(false)
@@ -91,6 +92,7 @@ export default function FeedContent({ userSkills }: { userSkills: string[] }) {
     const res  = await fetch(`/api/jobs?${params}`)
     const data = await res.json()
     setJobs(data.jobs ?? [])
+    setUnclassifiedCount(data.unclassified_count ?? 0)
     setLoading(false)
   }, [query, activeSkill, verifiedOnly, showHidden, daysFilter, rateMin, rateMax, matchFilter, platformFilter, typeFilter, includeUnknown])
 
@@ -163,7 +165,7 @@ export default function FeedContent({ userSkills }: { userSkills: string[] }) {
               checked={includeUnknown}
               onChange={e => setIncludeUnknown(e.target.checked)}
             />
-            Include unclassified listings
+            Include unclassified listings{!includeUnknown && unclassifiedCount > 0 ? ` (${unclassifiedCount} hidden)` : ''}
           </label>
         )}
       </div>
@@ -308,6 +310,11 @@ export default function FeedContent({ userSkills }: { userSkills: string[] }) {
               : 'Try different keywords or clear filters.'}
           </p>
           <div className="flex justify-center gap-3 mt-4 flex-wrap">
+            {typeFilter === 'contract' && !includeUnknown && unclassifiedCount > 0 && (
+              <button onClick={() => setIncludeUnknown(true)} className="text-xs text-primary underline">
+                Show {unclassifiedCount} unclassified listing{unclassifiedCount !== 1 ? 's' : ''}
+              </button>
+            )}
             {typeFilter !== 'all' && (
               <button onClick={() => setTypeFilter('all')} className="text-xs text-primary underline">
                 Show all types
